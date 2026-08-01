@@ -1,0 +1,51 @@
+name: Publish Release
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wordpress-org-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: GitHub and WordPress.org
+    runs-on: ubuntu-latest
+    environment: wordpress-org
+
+    steps:
+      - name: Check out released code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Verify release version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          PLUGIN_VERSION="$(sed -n 's/^[[:space:]]*\\* Version:[[:space:]]*//p' bumpmint.php | head -n 1)"
+          STABLE_TAG="$(sed -n 's/^Stable tag:[[:space:]]*//p' readme.txt | head -n 1)"
+          test "$RELEASE_TAG" = "$PLUGIN_VERSION"
+          test "$RELEASE_TAG" = "$STABLE_TAG"
+
+      - name: Deploy to WordPress.org and build ZIP
+        id: deploy
+        uses: 10up/action-wordpress-plugin-deploy@2.2.2
+        with:
+          generate-zip: true
+        env:
+          SLUG: bumpmint-order-bump-for-woocommerce
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+
+      - name: Attach ZIP to GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          ZIP_PATH: ${{ steps.deploy.outputs.zip-path }}
+        run: gh release upload "$RELEASE_TAG" "$ZIP_PATH" --clobber

@@ -1,0 +1,198 @@
+.bumpmint-admin-wrap {
+	max-width: 1440px;
+}
+
+.bumpmint-table-card,
+.bumpmint-form-card,
+.bumpmint-empty-state {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.bumpmint-table-card {
+	margin-top: 18px;
+	overflow-x: auto;
+}
+
+.bumpmint-rules-table {
+	border: 0;
+	box-shadow: none;
+}
+
+.bumpmint-rules-table th,
+.bumpmint-rules-table td {
+	vertical-align: middle;
+}
+
+.bumpmint-rules-table .column-actions {
+	width: 110px;
+}
+
+.bumpmint-rules-table .column-title {
+	width: 24%;
+}
+
+.bumpmint-rules-table .column-rule {
+	width: 18%;
+}
+
+.bumpmint-rules-table .column-status,
+.bumpmint-rules-table .column-date {
+	width: 90px;
+}
+
+.bumpmint-rules-table .column-price {
+	width: 135px;
+}
+
+.bumpmint-rules-table .column-position {
+	width: 18%;
+}
+
+.bumpmint-rules-table del {
+	color: #787c82;
+}
+
+.bumpmint-rules-table ins {
+	color: #1d2327;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.bumpmint-row-detail {
+	display: block;
+	margin-top: 3px;
+	color: #646970;
+	font-size: 12px;
+	line-height: 1.35;
+}
+
+.bumpmint-delete-link {
+	color: #b32d2e;
+}
+
+.bumpmint-status-dot {
+	display: inline-block;
+	width: 7px;
+	height: 7px;
+	margin-right: 6px;
+	border-radius: 50%;
+	background: #00a32a;
+	vertical-align: 1px;
+}
+
+.bumpmint-empty-state {
+	max-width: 640px;
+	margin-top: 20px;
+	padding: 42px 30px;
+	text-align: center;
+}
+
+.bumpmint-empty-state .dashicons {
+	width: 42px;
+	height: 42px;
+	color: #8c8f94;
+	font-size: 42px;
+}
+
+.bumpmint-empty-state h2 {
+	margin: 12px 0 6px;
+}
+
+.bumpmint-empty-state p {
+	margin: 0 0 18px;
+	color: #646970;
+}
+
+.bumpmint-rule-form {
+	max-width: 980px;
+}
+
+.bumpmint-form-card {
+	margin-top: 18px;
+	padding: 0 22px 8px;
+}
+
+.bumpmint-form-card > h2 {
+	margin: 0 -22px;
+	padding: 15px 22px;
+	border-bottom: 1px solid #dcdcde;
+	font-size: 15px;
+}
+
+.bumpmint-form-card .form-table {
+	margin-top: 4px;
+}
+
+.bumpmint-form-card .form-table th {
+	width: 210px;
+}
+
+.bumpmint-inline-fields {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.bumpmint-inline-fields .description {
+	flex-basis: 100%;
+}
+
+.bumpmint-discount-fields {
+	margin-top: 12px;
+}
+
+.bumpmint-image-control {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.bumpmint-image-preview {
+	width: 64px;
+	height: 64px;
+	margin-right: 4px;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+	background: #f6f7f7;
+	object-fit: cover;
+}
+
+.bumpmint-form-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 20px 0 30px;
+}
+
+@media screen and (max-width: 1100px) {
+	.bumpmint-rules-table .column-date,
+	.bumpmint-rules-table .column-position {
+		display: none;
+	}
+}
+
+@media screen and (max-width: 782px) {
+	.bumpmint-form-card {
+		padding-right: 16px;
+		padding-left: 16px;
+	}
+
+	.bumpmint-form-card > h2 {
+		margin-right: -16px;
+		margin-left: -16px;
+		padding-right: 16px;
+		padding-left: 16px;
+	}
+
+	.bumpmint-rules-table .column-actions,
+	.bumpmint-rules-table .column-rule,
+	.bumpmint-rules-table .column-status,
+	.bumpmint-rules-table .column-price {
+		display: none;
+	}
+}

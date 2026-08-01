@@ -1,0 +1,13 @@
+/.wordpress-org
+/.git
+/.github
+/build
+/node_modules
+/wordpress-org-translations
+
+.distignore
+.gitattributes
+.gitignore
+README.md
+PUBLISHING.md
+WORDPRESS-ORG-TRANSLATIONS.md

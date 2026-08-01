@@ -1,0 +1,35 @@
+name: Plugin Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  plugin-check:
+    name: WordPress Plugin Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Prepare release package
+        run: |
+          mkdir -p build/bumpmint-order-bump-for-woocommerce
+          rsync -a --exclude-from=.distignore ./ build/bumpmint-order-bump-for-woocommerce/
+
+      - name: Run Plugin Check
+        uses: wordpress/plugin-check-action@v1
+        with:
+          build-dir: ./build/bumpmint-order-bump-for-woocommerce
+          slug: bumpmint-order-bump-for-woocommerce
+          categories: |
+            plugin_repo
+            security
+            performance
+            accessibility
+            general
