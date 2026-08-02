@@ -202,5 +202,5 @@ Development is hosted on [GitHub](https://github.com/andrewaires/bumpmint). Use 
 
 == Changelog ==
 
-= 1.0.0 - 2026-08-01 =
+= 1.0.0 - 2026-08-02 =
 * Initial release.
