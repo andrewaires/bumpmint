@@ -24,18 +24,29 @@ jobs:
         with:
           ref: ${{ github.event.release.tag_name }}
 
+      - name: Install Subversion
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends subversion
+          svn --version --quiet
+
       - name: Verify release version
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           PLUGIN_VERSION="$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' bumpmint.php | head -n 1)"
           STABLE_TAG="$(sed -n 's/^Stable tag:[[:space:]]*//p' readme.txt | head -n 1)"
+
+          echo "Release tag: $RELEASE_TAG"
+          echo "Plugin version: $PLUGIN_VERSION"
+          echo "Stable tag: $STABLE_TAG"
+
           test "$RELEASE_TAG" = "$PLUGIN_VERSION"
           test "$RELEASE_TAG" = "$STABLE_TAG"
 
       - name: Deploy to WordPress.org and build ZIP
         id: deploy
-        uses: 10up/action-wordpress-plugin-deploy@2.2.2
+        uses: 10up/action-wordpress-plugin-deploy@2.3.0
         with:
           generate-zip: true
         env:
@@ -48,4 +59,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           ZIP_PATH: ${{ steps.deploy.outputs.zip-path }}
-        run: gh release upload "$RELEASE_TAG" "$ZIP_PATH" --clobber
+        run: |
+          gh release upload "$RELEASE_TAG" "$ZIP_PATH" --clobber
