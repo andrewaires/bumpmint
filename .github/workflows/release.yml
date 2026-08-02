@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Check out released code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.release.tag_name }}
 
@@ -28,7 +28,7 @@ jobs:
         env:
           RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          PLUGIN_VERSION="$(sed -n 's/^[[:space:]]*\\* Version:[[:space:]]*//p' bumpmint.php | head -n 1)"
+          PLUGIN_VERSION="$(sed -n 's/^[[:space:]]*\* Version:[[:space:]]*//p' bumpmint.php | head -n 1)"
           STABLE_TAG="$(sed -n 's/^Stable tag:[[:space:]]*//p' readme.txt | head -n 1)"
           test "$RELEASE_TAG" = "$PLUGIN_VERSION"
           test "$RELEASE_TAG" = "$STABLE_TAG"
