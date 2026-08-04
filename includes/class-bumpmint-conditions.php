@@ -31,7 +31,7 @@ class BumpMint_Conditions {
 	public static function get_definitions() {
 		$definitions = array(
 			self::PRODUCT       => array(
-				'label'     => __( 'Specific product in cart', 'bumpmint-order-bump-for-woocommerce' ),
+				'label'     => __( 'Specific products in cart', 'bumpmint-order-bump-for-woocommerce' ),
 				'evaluator' => array( __CLASS__, 'matches_product' ),
 			),
 			self::ALWAYS        => array(
@@ -102,23 +102,44 @@ class BumpMint_Conditions {
 	}
 
 	/**
-	 * Matches when a configured product or variation is in the cart.
+	 * Matches when any or all configured products or variations are in the cart.
 	 *
 	 * @param array   $rule Rule data.
 	 * @param WC_Cart $cart Cart instance.
 	 * @return bool
 	 */
 	public static function matches_product( array $rule, $cart ) {
-		$target_id = isset( $rule['condition_product_id'] ) ? absint( $rule['condition_product_id'] ) : 0;
-		if ( ! $target_id ) {
+		$target_ids = isset( $rule['condition_product_ids'] ) ? (array) $rule['condition_product_ids'] : array();
+		$target_ids = array_values( array_unique( array_filter( array_map( 'absint', $target_ids ) ) ) );
+		if ( empty( $target_ids ) ) {
 			return false;
 		}
 
+		$cart_product_ids = array();
 		foreach ( $cart->get_cart() as $cart_item ) {
 			$product_id   = isset( $cart_item['product_id'] ) ? absint( $cart_item['product_id'] ) : 0;
 			$variation_id = isset( $cart_item['variation_id'] ) ? absint( $cart_item['variation_id'] ) : 0;
 
-			if ( $target_id === $product_id || $target_id === $variation_id ) {
+			if ( $product_id ) {
+				$cart_product_ids[ $product_id ] = true;
+			}
+			if ( $variation_id ) {
+				$cart_product_ids[ $variation_id ] = true;
+			}
+		}
+
+		if ( isset( $rule['condition_match'] ) && 'all' === $rule['condition_match'] ) {
+			foreach ( $target_ids as $target_id ) {
+				if ( ! isset( $cart_product_ids[ $target_id ] ) ) {
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+		foreach ( $target_ids as $target_id ) {
+			if ( isset( $cart_product_ids[ $target_id ] ) ) {
 				return true;
 			}
 		}

@@ -101,15 +101,34 @@ class BumpMint_Rules {
 			);
 		}
 
-		$condition_product_id = isset( $data['condition_product_id'] ) ? absint( $data['condition_product_id'] ) : 0;
-		$condition_operator   = isset( $data['condition_operator'] ) ? sanitize_key( $data['condition_operator'] ) : 'greater_than';
-		$condition_value      = isset( $data['condition_value'] ) ? wc_format_decimal( $data['condition_value'] ) : '0';
+		$condition_product_ids = isset( $data['condition_product_ids'] )
+			? self::sanitize_product_ids( $data['condition_product_ids'] )
+			: array();
+		$condition_match       = isset( $data['condition_match'] ) ? sanitize_key( $data['condition_match'] ) : 'any';
+		$condition_operator    = isset( $data['condition_operator'] ) ? sanitize_key( $data['condition_operator'] ) : 'greater_than';
+		$condition_value       = isset( $data['condition_value'] ) ? wc_format_decimal( $data['condition_value'] ) : '0';
 
 		if ( BumpMint_Conditions::PRODUCT === $condition_type ) {
-			if ( ! $condition_product_id || ! wc_get_product( $condition_product_id ) ) {
+			if ( empty( $condition_product_ids ) ) {
 				return new WP_Error(
 					'bumpmint_trigger_required',
-					__( 'Select a valid trigger product.', 'bumpmint-order-bump-for-woocommerce' )
+					__( 'Select at least one valid trigger product.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+
+			foreach ( $condition_product_ids as $condition_product_id ) {
+				if ( ! wc_get_product( $condition_product_id ) ) {
+					return new WP_Error(
+						'bumpmint_invalid_trigger_product',
+						__( 'One or more selected trigger products are invalid.', 'bumpmint-order-bump-for-woocommerce' )
+					);
+				}
+			}
+
+			if ( ! in_array( $condition_match, array( 'any', 'all' ), true ) ) {
+				return new WP_Error(
+					'bumpmint_invalid_condition_match',
+					__( 'Select a valid trigger matching option.', 'bumpmint-order-bump-for-woocommerce' )
 				);
 			}
 		} elseif ( in_array( $condition_type, array( BumpMint_Conditions::CART_SUBTOTAL, BumpMint_Conditions::CART_QUANTITY ), true ) ) {
@@ -132,29 +151,46 @@ class BumpMint_Rules {
 			}
 		}
 
-		$bump_product_id = isset( $data['bump_product_id'] ) ? absint( $data['bump_product_id'] ) : 0;
-		$bump_product    = $bump_product_id ? wc_get_product( $bump_product_id ) : false;
-		if ( ! $bump_product ) {
+		$bump_product_ids = isset( $data['bump_product_ids'] )
+			? self::sanitize_product_ids( $data['bump_product_ids'] )
+			: array();
+		if ( empty( $bump_product_ids ) ) {
 			return new WP_Error(
 				'bumpmint_bump_required',
-				__( 'Select a valid product to offer.', 'bumpmint-order-bump-for-woocommerce' )
+				__( 'Select at least one valid product to offer.', 'bumpmint-order-bump-for-woocommerce' )
 			);
 		}
 
-		if ( $bump_product->is_type( array( 'variable', 'grouped', 'external' ) ) ) {
-			return new WP_Error(
-				'bumpmint_unsupported_bump_product',
-				__( 'Choose a directly purchasable product or a specific variation.', 'bumpmint-order-bump-for-woocommerce' )
-			);
+		foreach ( $bump_product_ids as $bump_product_id ) {
+			$bump_product = wc_get_product( $bump_product_id );
+			if ( ! $bump_product ) {
+				return new WP_Error(
+					'bumpmint_invalid_bump_product',
+					__( 'One or more selected offer products are invalid.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+
+			if ( $bump_product->is_type( array( 'variable', 'grouped', 'external' ) ) ) {
+				return new WP_Error(
+					'bumpmint_unsupported_bump_product',
+					__( 'Choose directly purchasable products or specific variations.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
 		}
 
 		if ( BumpMint_Conditions::PRODUCT === $condition_type ) {
-			$bump_parent_id = $bump_product->is_type( 'variation' ) ? $bump_product->get_parent_id() : 0;
-			if ( $condition_product_id === $bump_product_id || ( $bump_parent_id && $condition_product_id === $bump_parent_id ) ) {
-				return new WP_Error(
-					'bumpmint_same_product',
-					__( 'The trigger product and the offered product cannot be the same product.', 'bumpmint-order-bump-for-woocommerce' )
-				);
+			foreach ( $bump_product_ids as $bump_product_id ) {
+				$bump_product   = wc_get_product( $bump_product_id );
+				$bump_parent_id = $bump_product->is_type( 'variation' ) ? $bump_product->get_parent_id() : 0;
+
+				foreach ( $condition_product_ids as $condition_product_id ) {
+					if ( $condition_product_id === $bump_product_id || ( $bump_parent_id && $condition_product_id === $bump_parent_id ) ) {
+						return new WP_Error(
+							'bumpmint_same_product',
+							__( 'Trigger products and offered products cannot contain the same product.', 'bumpmint-order-bump-for-woocommerce' )
+						);
+					}
+				}
 			}
 		}
 
@@ -199,23 +235,24 @@ class BumpMint_Rules {
 		$badge_text = self::limit_text( $badge_text, self::BADGE_MAX_LENGTH );
 
 		$sanitized = array(
-			'id'                   => $existing_rule ? $existing_rule['id'] : wp_generate_uuid4(),
-			'name'                 => $name,
-			'condition_type'       => $condition_type,
-			'condition_product_id' => $condition_product_id,
-			'condition_operator'   => $condition_operator,
-			'condition_value'      => $condition_value,
-			'bump_product_id'      => $bump_product_id,
-			'position'             => $position,
-			'discount_enabled'     => $discount_enabled,
-			'discount_type'        => $discount_type,
-			'discount_value'       => $discount_value,
-			'badge_text'           => $badge_text,
-			'offer_title'          => isset( $data['offer_title'] ) ? sanitize_text_field( $data['offer_title'] ) : '',
-			'description'          => isset( $data['description'] ) ? sanitize_textarea_field( $data['description'] ) : '',
-			'image_id'             => isset( $data['image_id'] ) ? absint( $data['image_id'] ) : 0,
-			'status'               => 'active',
-			'created_at'           => $existing_rule && ! empty( $existing_rule['created_at'] )
+			'id'                    => $existing_rule ? $existing_rule['id'] : wp_generate_uuid4(),
+			'name'                  => $name,
+			'condition_type'        => $condition_type,
+			'condition_product_ids' => $condition_product_ids,
+			'condition_match'       => $condition_match,
+			'condition_operator'    => $condition_operator,
+			'condition_value'       => $condition_value,
+			'bump_product_ids'      => $bump_product_ids,
+			'position'              => $position,
+			'discount_enabled'      => $discount_enabled,
+			'discount_type'         => $discount_type,
+			'discount_value'        => $discount_value,
+			'badge_text'            => $badge_text,
+			'offer_title'           => isset( $data['offer_title'] ) ? sanitize_text_field( $data['offer_title'] ) : '',
+			'description'           => isset( $data['description'] ) ? sanitize_textarea_field( $data['description'] ) : '',
+			'image_id'              => isset( $data['image_id'] ) ? absint( $data['image_id'] ) : 0,
+			'status'                => 'active',
+			'created_at'            => $existing_rule && ! empty( $existing_rule['created_at'] )
 				? $existing_rule['created_at']
 				: current_time( 'mysql', true ),
 		);
@@ -278,9 +315,10 @@ class BumpMint_Rules {
 	 * @return array
 	 */
 	public static function calculate_prices( array $rule, $product = null ) {
-		$product = $product ? $product : wc_get_product( $rule['bump_product_id'] );
-		$base    = $product ? max( 0.0, (float) $product->get_price( 'edit' ) ) : 0.0;
-		$offer   = $base;
+		$product_ids = isset( $rule['bump_product_ids'] ) ? self::sanitize_product_ids( $rule['bump_product_ids'] ) : array();
+		$product     = $product ? $product : ( ! empty( $product_ids ) ? wc_get_product( $product_ids[0] ) : null );
+		$base        = $product ? max( 0.0, (float) $product->get_price( 'edit' ) ) : 0.0;
+		$offer       = $base;
 
 		if ( ! empty( $rule['discount_enabled'] ) ) {
 			$value = max( 0.0, (float) $rule['discount_value'] );
@@ -305,7 +343,8 @@ class BumpMint_Rules {
 	 * @return string
 	 */
 	public static function get_price_html( array $rule, $product = null ) {
-		$product = $product ? $product : wc_get_product( $rule['bump_product_id'] );
+		$product_ids = isset( $rule['bump_product_ids'] ) ? self::sanitize_product_ids( $rule['bump_product_ids'] ) : array();
+		$product     = $product ? $product : ( ! empty( $product_ids ) ? wc_get_product( $product_ids[0] ) : null );
 		if ( ! $product ) {
 			return '—';
 		}
@@ -356,17 +395,28 @@ class BumpMint_Rules {
 	 * @return array
 	 */
 	private static function normalize_rule( array $rule ) {
-		$bump_product_id = isset( $rule['bump_product_id'] )
-			? absint( $rule['bump_product_id'] )
-			: ( isset( $rule['bump'] ) ? absint( $rule['bump'] ) : 0 );
+		$condition_product_ids = isset( $rule['condition_product_ids'] )
+			? self::sanitize_product_ids( $rule['condition_product_ids'] )
+			: self::sanitize_product_ids(
+				isset( $rule['condition_product_id'] )
+					? $rule['condition_product_id']
+					: ( isset( $rule['gatilho'] ) ? $rule['gatilho'] : array() )
+			);
+		$bump_product_ids      = isset( $rule['bump_product_ids'] )
+			? self::sanitize_product_ids( $rule['bump_product_ids'] )
+			: self::sanitize_product_ids(
+				isset( $rule['bump_product_id'] )
+					? $rule['bump_product_id']
+					: ( isset( $rule['bump'] ) ? $rule['bump'] : array() )
+			);
 
 		$fallback_name = '';
 		if ( ! empty( $rule['name'] ) ) {
 			$fallback_name = $rule['name'];
 		} elseif ( ! empty( $rule['titulo'] ) ) {
 			$fallback_name = $rule['titulo'];
-		} elseif ( $bump_product_id ) {
-			$product       = wc_get_product( $bump_product_id );
+		} elseif ( ! empty( $bump_product_ids ) ) {
+			$product       = wc_get_product( $bump_product_ids[0] );
 			$fallback_name = $product
 				? sprintf(
 					/* translators: %s: offered product name. */
@@ -377,30 +427,38 @@ class BumpMint_Rules {
 		}
 
 		$defaults = array(
-			'id'                   => wp_generate_uuid4(),
-			'name'                 => self::limit_text( sanitize_text_field( $fallback_name ), self::NAME_MAX_LENGTH ),
-			'condition_type'       => isset( $rule['gatilho'] ) ? BumpMint_Conditions::PRODUCT : BumpMint_Conditions::ALWAYS,
-			'condition_product_id' => isset( $rule['gatilho'] ) ? absint( $rule['gatilho'] ) : 0,
-			'condition_operator'   => 'greater_than',
-			'condition_value'      => '0',
-			'bump_product_id'      => $bump_product_id,
-			'position'             => BumpMint_Positions::BEFORE_PAYMENT,
-			'discount_enabled'     => false,
-			'discount_type'        => 'percentage',
-			'discount_value'       => '0',
-			'badge_text'           => '',
-			'offer_title'          => isset( $rule['titulo'] ) ? sanitize_text_field( $rule['titulo'] ) : '',
-			'description'          => isset( $rule['descricao'] ) ? sanitize_textarea_field( $rule['descricao'] ) : '',
-			'image_id'             => isset( $rule['imagem_id'] ) ? absint( $rule['imagem_id'] ) : 0,
-			'status'               => 'active',
-			'created_at'           => current_time( 'mysql', true ),
+			'id'                    => wp_generate_uuid4(),
+			'name'                  => self::limit_text( sanitize_text_field( $fallback_name ), self::NAME_MAX_LENGTH ),
+			'condition_type'        => isset( $rule['gatilho'] ) ? BumpMint_Conditions::PRODUCT : BumpMint_Conditions::ALWAYS,
+			'condition_product_ids' => $condition_product_ids,
+			'condition_match'       => 'any',
+			'condition_operator'    => 'greater_than',
+			'condition_value'       => '0',
+			'bump_product_ids'      => $bump_product_ids,
+			'position'              => BumpMint_Positions::BEFORE_PAYMENT,
+			'discount_enabled'      => false,
+			'discount_type'         => 'percentage',
+			'discount_value'        => '0',
+			'badge_text'            => '',
+			'offer_title'           => isset( $rule['titulo'] ) ? sanitize_text_field( $rule['titulo'] ) : '',
+			'description'           => isset( $rule['descricao'] ) ? sanitize_textarea_field( $rule['descricao'] ) : '',
+			'image_id'              => isset( $rule['imagem_id'] ) ? absint( $rule['imagem_id'] ) : 0,
+			'status'                => 'active',
+			'created_at'            => current_time( 'mysql', true ),
 		);
 
 		$normalized = wp_parse_args( $rule, $defaults );
+		$normalized['condition_product_ids'] = $condition_product_ids;
+		$normalized['bump_product_ids']      = $bump_product_ids;
+		$normalized['condition_match']       = in_array( $normalized['condition_match'], array( 'any', 'all' ), true )
+			? $normalized['condition_match']
+			: 'any';
 
 		unset(
 			$normalized['gatilho'],
 			$normalized['bump'],
+			$normalized['condition_product_id'],
+			$normalized['bump_product_id'],
 			$normalized['titulo'],
 			$normalized['descricao'],
 			$normalized['imagem_id']
@@ -416,18 +474,38 @@ class BumpMint_Rules {
 	 * @return string
 	 */
 	private static function get_fingerprint( array $rule ) {
+		$condition_product_ids = $rule['condition_product_ids'];
+		$bump_product_ids      = $rule['bump_product_ids'];
+		sort( $condition_product_ids, SORT_NUMERIC );
+		sort( $bump_product_ids, SORT_NUMERIC );
+
 		return md5(
 			wp_json_encode(
 				array(
 					$rule['condition_type'],
-					$rule['condition_product_id'],
+					$condition_product_ids,
+					$rule['condition_match'],
 					$rule['condition_operator'],
 					$rule['condition_value'],
-					$rule['bump_product_id'],
+					$bump_product_ids,
 					$rule['position'],
 				)
 			)
 		);
+	}
+
+	/**
+	 * Sanitizes a product ID or list of product IDs.
+	 *
+	 * @param mixed $product_ids Product ID or list of IDs.
+	 * @return array
+	 */
+	private static function sanitize_product_ids( $product_ids ) {
+		$product_ids = is_array( $product_ids ) ? $product_ids : array( $product_ids );
+		$product_ids = array_map( 'absint', $product_ids );
+		$product_ids = array_filter( $product_ids );
+
+		return array_values( array_unique( $product_ids ) );
 	}
 
 	/**

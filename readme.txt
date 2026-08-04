@@ -18,13 +18,13 @@ Create high-converting WooCommerce order bumps with flexible targeting, secure d
 
 **BumpMint** helps you add relevant, one-click order bump offers directly to the WooCommerce checkout. Present the right complementary product at the moment customers are ready to buy and increase your store's average order value without adding extra steps to the purchase.
 
-Create multiple order bumps, target each offer with flexible cart rules, choose exactly where it appears, and optionally add an exclusive fixed or percentage discount. Everything is managed from a clean, lightweight WordPress interface—no coding required.
+Create multiple order bumps, target each offer with flexible cart rules, include one or more offer products, choose exactly where they appear, and optionally add an exclusive fixed or percentage discount. Everything is managed from a clean, lightweight WordPress interface—no coding required.
 
 ### Why choose BumpMint?
 
 * **Increase average order value** — Offer relevant add-ons before the customer completes the order.
 * **Create a frictionless experience** — Customers accept an offer with one click, without leaving checkout.
-* **Target offers more precisely** — Display each bump according to products, cart subtotal, or item quantity.
+* **Target offers more precisely** — Display each bump when any or all selected products are in the cart, or according to cart subtotal or item quantity.
 * **Protect promotional pricing** — Discounts and final prices are calculated and enforced on the server.
 * **Stay in control** — Customize the product, position, image, headline, description, and promotional banner.
 * **Keep checkout fast** — BumpMint uses lightweight assets and loads them only where they are needed.
@@ -41,7 +41,7 @@ Make checkout offers more compelling with:
 
 * Percentage discounts up to 100%.
 * Fixed-value discounts.
-* The product's regular WooCommerce price when discounts are disabled.
+* Each product's regular WooCommerce price when discounts are disabled.
 * Automatic original and discounted price display.
 * Automatic promotional banner text based on the configured discount.
 
@@ -51,7 +51,7 @@ Fixed discounts are capped so the final product price never becomes negative.
 
 Choose when an order bump should appear:
 
-* **Specific product in cart** — Trigger the offer when a selected product or variation is present.
+* **Specific products in cart** — Trigger the offer when any or all selected products or variations are present.
 * **Always show** — Display the offer on every eligible classic checkout.
 * **Cart subtotal** — Show the offer when the subtotal is greater or less than a value you define.
 * **Cart item quantity** — Show the offer when the number of product units is greater or less than a value you define.
@@ -78,19 +78,19 @@ Match the offer to your product and campaign:
 * Create a custom offer title and description.
 * Insert dynamic `{product}` and `{price}` placeholders.
 * Upload a custom image or automatically use the product image.
-* Offer simple products or specific purchasable variations.
+* Offer one or more simple products or specific purchasable variations as separately selectable offers.
 * Display the original price and discounted price together.
 * Deliver a responsive experience across desktop and mobile.
 
 = Keep Prices and Cart Actions Secure =
 
-The browser never decides which product price should be charged. It sends only the saved rule ID and the requested selection state.
+The browser never decides which product price should be charged. It sends only the saved rule ID, the selected offer product ID, and the requested selection state.
 
-BumpMint then validates the saved rule, product, current cart condition, purchasability, and stock on the server. The final price is recalculated from trusted WooCommerce data and enforced during cart total calculations.
+BumpMint then verifies that the product belongs to the saved rule and validates the current cart condition, purchasability, and stock on the server. The final price is recalculated from trusted WooCommerce data and enforced during cart total calculations.
 
 ### Start selling more in three simple steps
 
-1. Create an order bump and choose the product you want to offer.
+1. Create an order bump and choose one or more products you want to offer.
 2. Select a display rule, checkout position, and optional discount.
 3. Customize the banner and content, save the offer, and let customers add it with one click.
 
@@ -143,6 +143,10 @@ Yes. You can create and manage multiple order bumps. Every applicable offer assi
 = Can an order bump appear without a trigger product? =
 
 Yes. Select **Always show** as the display rule.
+
+= Can I select multiple trigger and offer products? =
+
+Yes. A product rule can match any selected trigger product or require all selected trigger products to be in the cart. Each selected offer product is displayed separately so the customer can accept one or more offers.
 
 = Can I target the cart value or number of items? =
 
@@ -197,8 +201,8 @@ Development is hosted on [GitHub](https://github.com/andrewaires/bumpmint). Use 
 1. A complete WooCommerce classic checkout with a targeted, discounted BumpMint offer before the Place order button.
 2. Responsive order bump card with custom banner text, product image, original price, discounted price, and one-click selection.
 3. Lightweight WordPress-native order bump list with actions, title, rule, status, price, position, and date.
-4. Create an order bump with an internal name, trigger rule, trigger product, offered product, and checkout position.
-5. Customize the offered product, secure discount, promotional banner, title, description, placeholders, and image.
+4. Create an order bump with an internal name, trigger rule, trigger products, offered products, and checkout position.
+5. Customize the offered products, secure discount, promotional banner, title, description, placeholders, and image.
 
 == Changelog ==
 

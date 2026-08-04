@@ -223,7 +223,7 @@ class BumpMint_Admin {
 	 * @param array $rule Rule data.
 	 */
 	private function render_rule_row( array $rule ) {
-		$product    = wc_get_product( $rule['bump_product_id'] );
+		$products   = $this->get_products( $rule['bump_product_ids'] );
 		$edit_url   = admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&action=edit&rule=' . rawurlencode( $rule['id'] ) );
 		$delete_url = wp_nonce_url(
 			admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&action=delete&rule=' . rawurlencode( $rule['id'] ) ),
@@ -248,8 +248,8 @@ class BumpMint_Admin {
 						<?php echo esc_html( $short_name ); ?>
 					</a>
 				</strong>
-				<?php if ( $product ) : ?>
-					<span class="bumpmint-row-detail"><?php echo esc_html( $product->get_name() ); ?></span>
+				<?php if ( ! empty( $products ) ) : ?>
+					<span class="bumpmint-row-detail"><?php echo esc_html( wp_html_excerpt( $this->get_product_names( $products ), 80, '…' ) ); ?></span>
 				<?php endif; ?>
 			</td>
 			<td class="column-rule" data-colname="<?php esc_attr_e( 'Rule type', 'bumpmint-order-bump-for-woocommerce' ); ?>">
@@ -261,7 +261,7 @@ class BumpMint_Admin {
 				<?php esc_html_e( 'Active', 'bumpmint-order-bump-for-woocommerce' ); ?>
 			</td>
 			<td class="column-price" data-colname="<?php esc_attr_e( 'Price', 'bumpmint-order-bump-for-woocommerce' ); ?>">
-				<?php echo wp_kses_post( BumpMint_Rules::get_price_html( $rule, $product ) ); ?>
+				<?php echo wp_kses_post( $this->get_products_price_html( $rule, $products ) ); ?>
 			</td>
 			<td class="column-position" data-colname="<?php esc_attr_e( 'Position', 'bumpmint-order-bump-for-woocommerce' ); ?>">
 				<?php echo esc_html( BumpMint_Positions::get_label( $rule['position'] ) ); ?>
@@ -280,22 +280,23 @@ class BumpMint_Admin {
 	 */
 	private function render_form_page( $action ) {
 		$defaults = array(
-			'id'                   => '',
-			'name'                 => '',
-			'condition_type'       => BumpMint_Conditions::PRODUCT,
-			'condition_product_id' => 0,
-			'condition_operator'   => 'greater_than',
-			'condition_value'      => '',
-			'bump_product_id'      => 0,
-			'position'             => BumpMint_Positions::BEFORE_PAYMENT,
-			'discount_enabled'     => false,
-			'discount_type'        => 'percentage',
-			'discount_value'       => '',
-			'badge_text'           => '',
-			'offer_title'          => '',
-			'description'          => '',
-			'image_id'             => 0,
-			'status'               => 'active',
+			'id'                    => '',
+			'name'                  => '',
+			'condition_type'        => BumpMint_Conditions::PRODUCT,
+			'condition_product_ids' => array(),
+			'condition_match'       => 'any',
+			'condition_operator'    => 'greater_than',
+			'condition_value'       => '',
+			'bump_product_ids'      => array(),
+			'position'              => BumpMint_Positions::BEFORE_PAYMENT,
+			'discount_enabled'      => false,
+			'discount_type'         => 'percentage',
+			'discount_value'        => '',
+			'badge_text'            => '',
+			'offer_title'           => '',
+			'description'           => '',
+			'image_id'              => 0,
+			'status'                => 'active',
 		);
 
 		$rule = array();
@@ -363,10 +364,26 @@ class BumpMint_Admin {
 							</td>
 						</tr>
 						<tr class="bumpmint-condition-fields" data-condition-types="product">
-							<th scope="row"><label for="bumpmint-condition-product"><?php esc_html_e( 'Trigger product', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
+							<th scope="row"><label for="bumpmint-condition-product"><?php esc_html_e( 'Trigger products', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
 							<td>
-								<?php $this->render_product_select( 'bumpmint_rule[condition_product_id]', 'bumpmint-condition-product', $rule['condition_product_id'] ); ?>
-								<p class="description"><?php esc_html_e( 'The offer appears when this product or variation is in the cart.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+								<?php $this->render_product_select( 'bumpmint_rule[condition_product_ids][]', 'bumpmint-condition-product', $rule['condition_product_ids'] ); ?>
+								<p class="description"><?php esc_html_e( 'Select one or more products or variations that can trigger the offer.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+						<tr class="bumpmint-condition-fields" data-condition-types="product">
+							<th scope="row">
+								<label for="bumpmint-condition-match"><?php esc_html_e( 'Trigger matching', 'bumpmint-order-bump-for-woocommerce' ); ?></label>
+								<?php
+								echo wc_help_tip( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WooCommerce escapes help tip output.
+									__( 'Any selected product: show the offer when at least one selected product is in the cart. All selected products: show the offer only when every selected product is in the cart.', 'bumpmint-order-bump-for-woocommerce' )
+								);
+								?>
+							</th>
+							<td>
+								<select id="bumpmint-condition-match" name="bumpmint_rule[condition_match]">
+									<option value="any" <?php selected( $rule['condition_match'], 'any' ); ?>><?php esc_html_e( 'Any selected product', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+									<option value="all" <?php selected( $rule['condition_match'], 'all' ); ?>><?php esc_html_e( 'All selected products', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+								</select>
 							</td>
 						</tr>
 						<tr class="bumpmint-condition-fields" data-condition-types="cart_subtotal cart_quantity">
@@ -394,10 +411,10 @@ class BumpMint_Admin {
 					<h2><?php esc_html_e( 'Offer settings', 'bumpmint-order-bump-for-woocommerce' ); ?></h2>
 					<table class="form-table" role="presentation">
 						<tr>
-							<th scope="row"><label for="bumpmint-bump-product"><?php esc_html_e( 'Product to offer', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
+							<th scope="row"><label for="bumpmint-bump-product"><?php esc_html_e( 'Products to offer', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
 							<td>
-								<?php $this->render_product_select( 'bumpmint_rule[bump_product_id]', 'bumpmint-bump-product', $rule['bump_product_id'] ); ?>
-								<p class="description"><?php esc_html_e( 'Choose a directly purchasable product or a specific variation.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+								<?php $this->render_product_select( 'bumpmint_rule[bump_product_ids][]', 'bumpmint-bump-product', $rule['bump_product_ids'] ); ?>
+								<p class="description"><?php esc_html_e( 'Choose one or more directly purchasable products or specific variations. Each product is displayed as a separate offer.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
 							</td>
 						</tr>
 						<tr>
@@ -521,7 +538,7 @@ class BumpMint_Admin {
 										<?php esc_html_e( 'Remove image', 'bumpmint-order-bump-for-woocommerce' ); ?>
 									</button>
 								</div>
-								<p class="description"><?php esc_html_e( 'The offered product image is used when no custom image is selected.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+								<p class="description"><?php esc_html_e( 'Each offered product uses its own image when no custom image is selected.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
 							</td>
 						</tr>
 					</table>
@@ -543,11 +560,10 @@ class BumpMint_Admin {
 	 *
 	 * @param string $name        Field name.
 	 * @param string $id_attr     Field ID.
-	 * @param int    $selected_id Selected product or variation ID.
+	 * @param array  $selected_ids Selected product or variation IDs.
 	 */
-	private function render_product_select( $name, $id_attr, $selected_id ) {
-		$selected_id = absint( $selected_id );
-		$product     = $selected_id ? wc_get_product( $selected_id ) : null;
+	private function render_product_select( $name, $id_attr, $selected_ids ) {
+		$selected_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $selected_ids ) ) ) );
 		?>
 		<select
 			id="<?php echo esc_attr( $id_attr ); ?>"
@@ -556,12 +572,16 @@ class BumpMint_Admin {
 			style="width: min(400px, 100%);"
 			data-placeholder="<?php esc_attr_e( 'Type to search for a product…', 'bumpmint-order-bump-for-woocommerce' ); ?>"
 			data-action="woocommerce_json_search_products_and_variations"
-			data-allow-clear="true">
-			<?php if ( $product ) : ?>
-				<option value="<?php echo esc_attr( $selected_id ); ?>" selected="selected">
-					<?php echo esc_html( wp_strip_all_tags( $product->get_formatted_name() ) ); ?>
-				</option>
-			<?php endif; ?>
+			data-allow-clear="true"
+			multiple="multiple">
+			<?php foreach ( $selected_ids as $selected_id ) : ?>
+				<?php $product = wc_get_product( $selected_id ); ?>
+				<?php if ( $product ) : ?>
+					<option value="<?php echo esc_attr( $selected_id ); ?>" selected="selected">
+						<?php echo esc_html( wp_strip_all_tags( $product->get_formatted_name() ) ); ?>
+					</option>
+				<?php endif; ?>
+			<?php endforeach; ?>
 		</select>
 		<?php
 	}
@@ -574,8 +594,16 @@ class BumpMint_Admin {
 	 */
 	private function get_condition_summary( array $rule ) {
 		if ( BumpMint_Conditions::PRODUCT === $rule['condition_type'] ) {
-			$product = wc_get_product( $rule['condition_product_id'] );
-			return $product ? $product->get_name() : __( 'Product not found', 'bumpmint-order-bump-for-woocommerce' );
+			$products = $this->get_products( $rule['condition_product_ids'] );
+			if ( empty( $products ) ) {
+				return __( 'Products not found', 'bumpmint-order-bump-for-woocommerce' );
+			}
+
+			$matching = 'all' === $rule['condition_match']
+				? __( 'All:', 'bumpmint-order-bump-for-woocommerce' )
+				: __( 'Any:', 'bumpmint-order-bump-for-woocommerce' );
+
+			return $matching . ' ' . wp_html_excerpt( $this->get_product_names( $products ), 60, '…' );
 		}
 
 		if ( BumpMint_Conditions::ALWAYS === $rule['condition_type'] ) {
@@ -591,6 +619,73 @@ class BumpMint_Admin {
 		}
 
 		return $operator . ' ' . absint( $rule['condition_value'] );
+	}
+
+	/**
+	 * Resolves a list of product IDs without querying the catalog broadly.
+	 *
+	 * @param array $product_ids Product or variation IDs.
+	 * @return array
+	 */
+	private function get_products( array $product_ids ) {
+		$products = array();
+		foreach ( $product_ids as $product_id ) {
+			$product = wc_get_product( absint( $product_id ) );
+			if ( $product ) {
+				$products[] = $product;
+			}
+		}
+
+		return $products;
+	}
+
+	/**
+	 * Returns a comma-separated product name list.
+	 *
+	 * @param array $products Product objects.
+	 * @return string
+	 */
+	private function get_product_names( array $products ) {
+		return implode(
+			', ',
+			array_map(
+				function ( $product ) {
+					return $product->get_name();
+				},
+				$products
+			)
+		);
+	}
+
+	/**
+	 * Returns one price or an offer-price range for the rules table.
+	 *
+	 * @param array $rule     Rule data.
+	 * @param array $products Product objects.
+	 * @return string
+	 */
+	private function get_products_price_html( array $rule, array $products ) {
+		if ( empty( $products ) ) {
+			return '—';
+		}
+
+		if ( 1 === count( $products ) ) {
+			return BumpMint_Rules::get_price_html( $rule, $products[0] );
+		}
+
+		$offer_prices = array();
+		foreach ( $products as $product ) {
+			$prices         = BumpMint_Rules::calculate_prices( $rule, $product );
+			$offer_prices[] = wc_get_price_to_display( $product, array( 'price' => $prices['offer'] ) );
+		}
+
+		$minimum = min( $offer_prices );
+		$maximum = max( $offer_prices );
+		if ( $minimum === $maximum ) {
+			return wc_price( $minimum );
+		}
+
+		return wc_price( $minimum ) . ' – ' . wc_price( $maximum );
 	}
 
 	/**

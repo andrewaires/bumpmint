@@ -117,21 +117,23 @@ class BumpMint_Checkout {
 				continue;
 			}
 
-			$product = wc_get_product( $rule['bump_product_id'] );
-			if ( ! $product ) {
-				continue;
-			}
+			foreach ( $rule['bump_product_ids'] as $bump_product_id ) {
+				$product = wc_get_product( $bump_product_id );
+				if ( ! $product ) {
+					continue;
+				}
 
-			$cart_item_key = $this->find_cart_item_key_for_rule( $rule['id'], $cart );
-			if ( ! $cart_item_key && ! $this->is_product_available( $product, $cart ) ) {
-				continue;
-			}
+				$cart_item_key = $this->find_cart_item_key_for_rule( $rule['id'], $product->get_id(), $cart );
+				if ( ! $cart_item_key && ! $this->is_product_available( $product, $cart ) ) {
+					continue;
+				}
 
-			$applicable_rules[] = array(
-				'rule'          => $rule,
-				'product'       => $product,
-				'cart_item_key' => $cart_item_key,
-			);
+				$applicable_rules[] = array(
+					'rule'          => $rule,
+					'product'       => $product,
+					'cart_item_key' => $cart_item_key,
+				);
+			}
 		}
 
 		if ( empty( $applicable_rules ) ) {
@@ -166,9 +168,10 @@ class BumpMint_Checkout {
 	 * @param bool       $is_checked Whether this rule's cart item exists.
 	 */
 	private function render_card( array $rule, $product, $is_checked ) {
-		$rule_id   = $rule['id'];
-		$input_id = 'bumpmint-bump-' . sanitize_html_class( $rule_id );
-		$prices   = BumpMint_Rules::calculate_prices( $rule, $product );
+		$rule_id    = $rule['id'];
+		$product_id = $product->get_id();
+		$input_id   = 'bumpmint-bump-' . sanitize_html_class( $rule_id . '-' . $product_id );
+		$prices     = BumpMint_Rules::calculate_prices( $rule, $product );
 
 		$offer_display_price = wc_get_price_to_display( $product, array( 'price' => $prices['offer'] ) );
 		$formatted_price     = wp_strip_all_tags( wc_price( $offer_display_price ) );
@@ -197,6 +200,7 @@ class BumpMint_Checkout {
 						class="bumpmint-checkbox"
 						id="<?php echo esc_attr( $input_id ); ?>"
 						data-rule-id="<?php echo esc_attr( $rule_id ); ?>"
+						data-product-id="<?php echo esc_attr( $product_id ); ?>"
 						<?php checked( $is_checked, true ); ?>
 					/>
 					<?php
@@ -222,8 +226,9 @@ class BumpMint_Checkout {
 	/**
 	 * Handles secure add and remove requests.
 	 *
-	 * The browser sends only a rule ID and desired state. Product, condition,
-	 * stock, and price are resolved again from trusted server-side data.
+	 * The browser sends a rule ID, one selected product ID, and the desired
+	 * state. The product must belong to the saved rule; condition, stock, and
+	 * price are resolved again from trusted server-side data.
 	 */
 	public function ajax_toggle() {
 		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
@@ -233,15 +238,20 @@ class BumpMint_Checkout {
 			wp_send_json_error( array( 'message' => __( 'The cart is unavailable.', 'bumpmint-order-bump-for-woocommerce' ) ), 400 );
 		}
 
-		$rule_id = isset( $_POST['rule_id'] ) ? sanitize_text_field( wp_unslash( $_POST['rule_id'] ) ) : '';
-		$add     = isset( $_POST['add'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['add'] ) );
-		$rule    = $rule_id ? BumpMint_Rules::get_rule( $rule_id ) : null;
+		$rule_id    = isset( $_POST['rule_id'] ) ? sanitize_text_field( wp_unslash( $_POST['rule_id'] ) ) : '';
+		$product_id = isset( $_POST['product_id'] ) ? absint( wp_unslash( $_POST['product_id'] ) ) : 0;
+		$add        = isset( $_POST['add'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['add'] ) );
+		$rule       = $rule_id ? BumpMint_Rules::get_rule( $rule_id ) : null;
 
 		if ( ! $rule || 'active' !== $rule['status'] ) {
 			wp_send_json_error( array( 'message' => __( 'This offer is no longer available.', 'bumpmint-order-bump-for-woocommerce' ) ), 404 );
 		}
 
-		$existing_key = $this->find_cart_item_key_for_rule( $rule_id, $cart );
+		if ( ! $product_id || ! in_array( $product_id, $rule['bump_product_ids'], true ) ) {
+			wp_send_json_error( array( 'message' => __( 'This product is not part of the selected offer.', 'bumpmint-order-bump-for-woocommerce' ) ), 404 );
+		}
+
+		$existing_key = $this->find_cart_item_key_for_rule( $rule_id, $product_id, $cart );
 
 		if ( ! $add ) {
 			if ( $existing_key ) {
@@ -259,7 +269,7 @@ class BumpMint_Checkout {
 			wp_send_json_success( array( 'cart_hash' => $cart->get_cart_hash() ) );
 		}
 
-		$product = wc_get_product( $rule['bump_product_id'] );
+		$product = wc_get_product( $product_id );
 		if ( ! $product || ! $this->is_product_available( $product, $cart ) ) {
 			wp_send_json_error( array( 'message' => __( 'This product is unavailable or out of stock.', 'bumpmint-order-bump-for-woocommerce' ) ), 409 );
 		}
@@ -306,23 +316,38 @@ class BumpMint_Checkout {
 		$this->applying_prices = true;
 
 		try {
+			$rules_by_id      = array();
+			$rule_eligibility = array();
+			foreach ( BumpMint_Rules::get_rules() as $saved_rule ) {
+				$rules_by_id[ (string) $saved_rule['id'] ] = $saved_rule;
+			}
+
 			foreach ( $cart->get_cart() as $cart_item ) {
 				if ( empty( $cart_item['bumpmint_rule_id'] ) || empty( $cart_item['data'] ) ) {
 					continue;
 				}
 
-				$rule = BumpMint_Rules::get_rule( $cart_item['bumpmint_rule_id'] );
-				if ( ! $rule ) {
+				$cart_product_id   = $this->get_cart_item_product_id( $cart_item );
+				$canonical_product = wc_get_product( $cart_product_id );
+				if ( ! $canonical_product ) {
 					continue;
 				}
 
-				$canonical_product = wc_get_product( $rule['bump_product_id'] );
-				if ( ! $canonical_product || $this->get_cart_item_product_id( $cart_item ) !== (int) $rule['bump_product_id'] ) {
-					continue;
+				$rule_id       = (string) $cart_item['bumpmint_rule_id'];
+				$rule          = isset( $rules_by_id[ $rule_id ] ) ? $rules_by_id[ $rule_id ] : null;
+				if ( $rule && ! array_key_exists( $rule_id, $rule_eligibility ) ) {
+					$rule_eligibility[ $rule_id ] = 'active' === $rule['status'] && BumpMint_Conditions::matches( $rule, $cart );
 				}
 
-				$prices        = BumpMint_Rules::calculate_prices( $rule, $canonical_product );
-				$is_eligible   = 'active' === $rule['status'] && BumpMint_Conditions::matches( $rule, $cart );
+				$prices        = $rule
+					? BumpMint_Rules::calculate_prices( $rule, $canonical_product )
+					: array(
+						'base'  => (float) wc_format_decimal( max( 0.0, (float) $canonical_product->get_price( 'edit' ) ), wc_get_price_decimals() ),
+						'offer' => 0.0,
+					);
+				$is_eligible   = $rule
+					&& in_array( $cart_product_id, $rule['bump_product_ids'], true )
+					&& $rule_eligibility[ $rule_id ];
 				$trusted_price = $is_eligible ? $prices['offer'] : $prices['base'];
 
 				$cart_item['data']->set_price( wc_format_decimal( $trusted_price ) );
@@ -380,15 +405,17 @@ class BumpMint_Checkout {
 	/**
 	 * Finds the cart line created by a specific rule.
 	 *
-	 * @param string  $rule_id Rule ID.
-	 * @param WC_Cart $cart    Cart instance.
+	 * @param string  $rule_id    Rule ID.
+	 * @param int     $product_id Exact product or variation ID.
+	 * @param WC_Cart $cart       Cart instance.
 	 * @return string|null
 	 */
-	private function find_cart_item_key_for_rule( $rule_id, $cart ) {
+	private function find_cart_item_key_for_rule( $rule_id, $product_id, $cart ) {
 		foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
 			if (
 				! empty( $cart_item['bumpmint_rule_id'] ) &&
-				hash_equals( (string) $cart_item['bumpmint_rule_id'], (string) $rule_id )
+				hash_equals( (string) $cart_item['bumpmint_rule_id'], (string) $rule_id ) &&
+				$this->get_cart_item_product_id( $cart_item ) === (int) $product_id
 			) {
 				return $cart_item_key;
 			}

@@ -19,6 +19,7 @@
 			data: {
 				action: 'bumpmint_toggle_bump',
 				rule_id: $checkbox.data( 'rule-id' ),
+				product_id: $checkbox.data( 'product-id' ),
 				add: shouldAdd,
 				nonce: bumpmintFrontend.nonce
 			}
