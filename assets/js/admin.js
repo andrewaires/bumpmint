@@ -42,6 +42,19 @@
 		$form.find( '.bumpmint-discount-fields :input' ).prop( 'disabled', ! enabled );
 	}
 
+	function initializeHelpTips( $form ) {
+		if ( typeof $.fn.tipTip !== 'function' ) {
+			return;
+		}
+
+		$form.find( '.woocommerce-help-tip' ).tipTip({
+			attribute: 'data-tip',
+			fadeIn: 50,
+			fadeOut: 50,
+			delay: 200
+		});
+	}
+
 	$( document ).on( 'click', '.bumpmint-select-image', function ( event ) {
 		event.preventDefault();
 		openMediaFrame( $( this ).closest( 'form' ) );
@@ -74,6 +87,7 @@
 			var $form = $( this );
 			updateConditionFields( $form );
 			updateDiscountFields( $form );
+			initializeHelpTips( $form );
 		});
 	});
 

@@ -58,6 +58,11 @@ class BumpMint_Admin {
 			return;
 		}
 
+		$is_form_page       = in_array( $this->get_current_action(), array( 'new', 'edit' ), true );
+		$script_dependencies = array( 'jquery' );
+		$script_path         = BUMPMINT_PLUGIN_DIR . 'assets/js/admin.js';
+		$script_version      = file_exists( $script_path ) ? (string) filemtime( $script_path ) : BUMPMINT_VERSION;
+
 		wp_enqueue_style(
 			'bumpmint-admin',
 			BUMPMINT_PLUGIN_URL . 'assets/css/admin.css',
@@ -65,19 +70,20 @@ class BumpMint_Admin {
 			BUMPMINT_VERSION
 		);
 
+		if ( $is_form_page ) {
+			wp_enqueue_media();
+			wp_enqueue_style( 'woocommerce_admin_styles' );
+			$script_dependencies[] = 'jquery-tiptip';
+			$script_dependencies[] = 'wc-enhanced-select';
+		}
+
 		wp_enqueue_script(
 			'bumpmint-admin',
 			BUMPMINT_PLUGIN_URL . 'assets/js/admin.js',
-			array( 'jquery' ),
-			BUMPMINT_VERSION,
+			$script_dependencies,
+			$script_version,
 			true
 		);
-
-		if ( in_array( $this->get_current_action(), array( 'new', 'edit' ), true ) ) {
-			wp_enqueue_media();
-			wp_enqueue_style( 'woocommerce_admin_styles' );
-			wp_enqueue_script( 'wc-enhanced-select' );
-		}
 
 		wp_localize_script(
 			'bumpmint-admin',
