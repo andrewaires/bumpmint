@@ -25,6 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Plugin constants.
 define( 'BUMPMINT_VERSION', '1.0.0' );
+define( 'BUMPMINT_PLUGIN_SLUG', 'bumpmint-order-bump-for-woocommerce' );
 define( 'BUMPMINT_PLUGIN_FILE', __FILE__ );
 define( 'BUMPMINT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BUMPMINT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -63,6 +64,8 @@ final class BumpMint_Plugin {
 	private function __construct() {
 		add_action( 'init', array( $this, 'init' ) );
 		add_action( 'before_woocommerce_init', array( $this, 'declare_hpos_compatibility' ) );
+		add_action( 'admin_notices', array( $this, 'nonstandard_installation_notice' ) );
+		add_action( 'network_admin_notices', array( $this, 'nonstandard_installation_notice' ) );
 
 		$plugin_basename = plugin_basename( BUMPMINT_PLUGIN_FILE );
 		add_filter( "plugin_action_links_{$plugin_basename}", array( $this, 'add_settings_link' ) );
@@ -122,6 +125,40 @@ final class BumpMint_Plugin {
 		echo '<div class="notice notice-error"><p>' .
 			esc_html__( 'BumpMint requires WooCommerce to be installed and active.', 'bumpmint-order-bump-for-woocommerce' ) .
 			'</p></div>';
+	}
+
+	/**
+	 * Displays an admin error when the plugin directory does not match its
+	 * canonical WordPress.org slug.
+	 */
+	public function nonstandard_installation_notice() {
+		if ( ! current_user_can( 'activate_plugins' ) ) {
+			return;
+		}
+
+		$installed_directory = basename( untrailingslashit( BUMPMINT_PLUGIN_DIR ) );
+		if ( BUMPMINT_PLUGIN_SLUG === $installed_directory ) {
+			return;
+		}
+
+		$wordpress_org_link = sprintf(
+			'<a href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a>',
+			esc_url( 'https://wordpress.org/plugins/bumpmint-order-bump-for-woocommerce/' ),
+			esc_html( 'wordpress.org/plugins/bumpmint-order-bump-for-woocommerce' )
+		);
+		$github_release_link = sprintf(
+			'<a href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a>',
+			esc_url( 'https://github.com/andrewaires/bumpmint/releases' ),
+			esc_html( 'GitHub Release' )
+		);
+		$message = sprintf(
+			/* translators: 1: WordPress.org plugin link, 2: GitHub Releases link. */
+			__( 'O BumpMint não foi instalado a partir do repositório oficial do WordPress.org. Isso pode fazer com que o plugin não funcione corretamente e apresente erros. Para você usar todos os nossos recursos corretamente, instale o pacote correto em %1$s ou através da versão anexada ao %2$s.', 'bumpmint-order-bump-for-woocommerce' ),
+			$wordpress_org_link,
+			$github_release_link
+		);
+
+		echo '<div class="notice notice-error"><p>' . wp_kses_post( $message ) . '</p></div>';
 	}
 
 	/**
