@@ -59,6 +59,8 @@ class BumpMint_Admin {
 		}
 
 		$is_form_page       = in_array( $this->get_current_action(), array( 'new', 'edit' ), true );
+		$style_path          = BUMPMINT_PLUGIN_DIR . 'assets/css/admin.css';
+		$style_version       = file_exists( $style_path ) ? (string) filemtime( $style_path ) : BUMPMINT_VERSION;
 		$script_dependencies = array( 'jquery' );
 		$script_path         = BUMPMINT_PLUGIN_DIR . 'assets/js/admin.js';
 		$script_version      = file_exists( $script_path ) ? (string) filemtime( $script_path ) : BUMPMINT_VERSION;
@@ -67,7 +69,7 @@ class BumpMint_Admin {
 			'bumpmint-admin',
 			BUMPMINT_PLUGIN_URL . 'assets/css/admin.css',
 			array(),
-			BUMPMINT_VERSION
+			$style_version
 		);
 
 		if ( $is_form_page ) {

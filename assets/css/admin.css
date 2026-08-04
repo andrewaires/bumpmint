@@ -110,6 +110,16 @@
 	max-width: 980px;
 }
 
+.bumpmint-rule-form .select2-selection--multiple .select2-selection__clear {
+	font-size: 18px;
+	line-height: 1;
+}
+
+.bumpmint-rule-form .select2-selection--multiple .select2-selection__choice__remove {
+	font-size: 18px;
+	line-height: 1;
+}
+
 .bumpmint-form-card {
 	margin-top: 18px;
 	padding: 0 22px 8px;
