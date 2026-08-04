@@ -25,6 +25,7 @@ Create multiple order bumps, target each offer with flexible cart rules, include
 * **Increase average order value** — Offer relevant add-ons before the customer completes the order.
 * **Create a frictionless experience** — Customers accept an offer with one click, without leaving checkout.
 * **Target offers more precisely** — Display each bump when any or all selected products are in the cart, or according to cart subtotal or item quantity.
+* **Avoid redundant offers** — Optionally hide each offered product when that exact product or variation is already in the cart.
 * **Protect promotional pricing** — Discounts and final prices are calculated and enforced on the server.
 * **Stay in control** — Customize the product, position, image, headline, description, and promotional banner.
 * **Keep checkout fast** — BumpMint uses lightweight assets and loads them only where they are needed.
@@ -79,6 +80,7 @@ Match the offer to your product and campaign:
 * Insert dynamic `{product}` and `{price}` placeholders.
 * Upload a custom image or automatically use the product image.
 * Offer one or more simple products or specific purchasable variations as separately selectable offers.
+* Optionally hide offered products that are already in the cart while leaving the rule's other products available.
 * Display the original price and discounted price together.
 * Deliver a responsive experience across desktop and mobile.
 

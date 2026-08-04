@@ -16,6 +16,7 @@ Present relevant add-ons when customers are ready to complete their purchase. Bu
 - Offer fixed or percentage discounts.
 - Trigger offers by any or all selected products, cart subtotal, item quantity, or show them every time.
 - Include multiple separately selectable products in one order bump.
+- Optionally hide an offered product when that exact product or variation is already in the cart.
 - Position offers before/after order items, before payment, or before the Place order button.
 - Customize the banner, product image, title, description, and dynamic placeholders.
 - Support simple products and specific purchasable variations.
@@ -60,6 +61,8 @@ Items added by BumpMint are excluded from subtotal and quantity rules so an offe
 ## Secure discounts
 
 The browser sends only the saved rule ID, the selected offer product ID, and the requested selection state. BumpMint verifies that the product belongs to the saved rule, resolves its canonical price on the server, validates the current condition and stock, calculates the discount, and enforces the trusted price during WooCommerce cart total calculations.
+
+Each rule can hide offered products that are already present in the cart. This check applies independently to each product, while products added through that same bump remain visible so the customer can remove them.
 
 ## Requirements
 

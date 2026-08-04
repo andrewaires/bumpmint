@@ -154,6 +154,7 @@ class BumpMint_Rules {
 		$bump_product_ids = isset( $data['bump_product_ids'] )
 			? self::sanitize_product_ids( $data['bump_product_ids'] )
 			: array();
+		$hide_if_in_cart = isset( $data['hide_if_in_cart'] ) && '1' === (string) $data['hide_if_in_cart'];
 		if ( empty( $bump_product_ids ) ) {
 			return new WP_Error(
 				'bumpmint_bump_required',
@@ -243,6 +244,7 @@ class BumpMint_Rules {
 			'condition_operator'    => $condition_operator,
 			'condition_value'       => $condition_value,
 			'bump_product_ids'      => $bump_product_ids,
+			'hide_if_in_cart'       => $hide_if_in_cart,
 			'position'              => $position,
 			'discount_enabled'      => $discount_enabled,
 			'discount_type'         => $discount_type,
@@ -435,6 +437,7 @@ class BumpMint_Rules {
 			'condition_operator'    => 'greater_than',
 			'condition_value'       => '0',
 			'bump_product_ids'      => $bump_product_ids,
+			'hide_if_in_cart'       => false,
 			'position'              => BumpMint_Positions::BEFORE_PAYMENT,
 			'discount_enabled'      => false,
 			'discount_type'         => 'percentage',
@@ -450,6 +453,7 @@ class BumpMint_Rules {
 		$normalized = wp_parse_args( $rule, $defaults );
 		$normalized['condition_product_ids'] = $condition_product_ids;
 		$normalized['bump_product_ids']      = $bump_product_ids;
+		$normalized['hide_if_in_cart']       = ! empty( $normalized['hide_if_in_cart'] );
 		$normalized['condition_match']       = in_array( $normalized['condition_match'], array( 'any', 'all' ), true )
 			? $normalized['condition_match']
 			: 'any';

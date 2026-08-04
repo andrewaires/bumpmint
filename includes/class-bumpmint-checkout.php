@@ -124,6 +124,10 @@ class BumpMint_Checkout {
 				}
 
 				$cart_item_key = $this->find_cart_item_key_for_rule( $rule['id'], $product->get_id(), $cart );
+				if ( ! $cart_item_key && ! empty( $rule['hide_if_in_cart'] ) && $this->cart_contains_product( $product->get_id(), $cart ) ) {
+					continue;
+				}
+
 				if ( ! $cart_item_key && ! $this->is_product_available( $product, $cart ) ) {
 					continue;
 				}
@@ -259,6 +263,10 @@ class BumpMint_Checkout {
 			}
 			$cart->calculate_totals();
 			wp_send_json_success( array( 'cart_hash' => $cart->get_cart_hash() ) );
+		}
+
+		if ( ! empty( $rule['hide_if_in_cart'] ) && ! $existing_key && $this->cart_contains_product( $product_id, $cart ) ) {
+			wp_send_json_error( array( 'message' => __( 'This product is already in the cart.', 'bumpmint-order-bump-for-woocommerce' ) ), 409 );
 		}
 
 		if ( ! BumpMint_Conditions::matches( $rule, $cart ) ) {

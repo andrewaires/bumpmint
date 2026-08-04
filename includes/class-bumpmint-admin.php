@@ -288,6 +288,7 @@ class BumpMint_Admin {
 			'condition_operator'    => 'greater_than',
 			'condition_value'       => '',
 			'bump_product_ids'      => array(),
+			'hide_if_in_cart'       => false,
 			'position'              => BumpMint_Positions::BEFORE_PAYMENT,
 			'discount_enabled'      => false,
 			'discount_type'         => 'percentage',
@@ -427,6 +428,27 @@ class BumpMint_Admin {
 										</option>
 									<?php endforeach; ?>
 								</select>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row">
+								<?php esc_html_e( 'Products already in cart', 'bumpmint-order-bump-for-woocommerce' ); ?>
+								<?php
+								echo wc_help_tip( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WooCommerce escapes help tip output.
+									__( 'When enabled, an offered product is hidden if that exact product or variation is already in the cart. Other offered products remain visible.', 'bumpmint-order-bump-for-woocommerce' )
+								);
+								?>
+							</th>
+							<td>
+								<label>
+									<input
+										type="checkbox"
+										name="bumpmint_rule[hide_if_in_cart]"
+										value="1"
+										<?php checked( ! empty( $rule['hide_if_in_cart'] ) ); ?>
+									/>
+									<?php esc_html_e( 'Hide offered products that are already in the cart', 'bumpmint-order-bump-for-woocommerce' ); ?>
+								</label>
 							</td>
 						</tr>
 						<tr>
