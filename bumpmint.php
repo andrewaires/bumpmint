@@ -30,6 +30,8 @@ define( 'BUMPMINT_PLUGIN_FILE', __FILE__ );
 define( 'BUMPMINT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BUMPMINT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'BUMPMINT_OPTION_KEY', 'bumpmint_rules' );
+define( 'BUMPMINT_SUPPORT_URL', 'https://wordpress.org/support/plugin/bumpmint-order-bump-for-woocommerce/' );
+define( 'BUMPMINT_REVIEW_URL', 'https://wordpress.org/support/plugin/bumpmint-order-bump-for-woocommerce/reviews/#new-post' );
 
 /**
  * Main plugin class.
@@ -69,6 +71,7 @@ final class BumpMint_Plugin {
 
 		$plugin_basename = plugin_basename( BUMPMINT_PLUGIN_FILE );
 		add_filter( "plugin_action_links_{$plugin_basename}", array( $this, 'add_settings_link' ) );
+		add_filter( 'plugin_row_meta', array( $this, 'add_plugin_meta_links' ), 10, 2 );
 	}
 
 	/**
@@ -174,6 +177,32 @@ final class BumpMint_Plugin {
 			esc_html__( 'Settings', 'bumpmint-order-bump-for-woocommerce' )
 		);
 		array_unshift( $links, $settings_link );
+		return $links;
+	}
+
+	/**
+	 * Adds support and review links to the plugin metadata row.
+	 *
+	 * @param array  $links       Existing plugin metadata links.
+	 * @param string $plugin_file Plugin path relative to the plugins directory.
+	 * @return array
+	 */
+	public function add_plugin_meta_links( $links, $plugin_file ) {
+		if ( plugin_basename( BUMPMINT_PLUGIN_FILE ) !== $plugin_file ) {
+			return $links;
+		}
+
+		$links['bumpmint_support'] = sprintf(
+			'<a href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a>',
+			esc_url( BUMPMINT_SUPPORT_URL ),
+			esc_html__( 'Support', 'bumpmint-order-bump-for-woocommerce' )
+		);
+		$links['bumpmint_review']  = sprintf(
+			'<a href="%1$s" target="_blank" rel="noopener noreferrer">%2$s</a>',
+			esc_url( BUMPMINT_REVIEW_URL ),
+			esc_html__( 'Leave a review', 'bumpmint-order-bump-for-woocommerce' )
+		);
+
 		return $links;
 	}
 }

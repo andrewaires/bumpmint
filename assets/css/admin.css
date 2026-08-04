@@ -2,6 +2,32 @@
 	max-width: 1440px;
 }
 
+.bumpmint-page-header,
+.bumpmint-page-title,
+.bumpmint-resource-links {
+	display: flex;
+	align-items: center;
+}
+
+.bumpmint-page-header {
+	justify-content: space-between;
+	gap: 20px;
+}
+
+.bumpmint-page-title {
+	gap: 5px;
+}
+
+.bumpmint-resource-links {
+	gap: 8px;
+	margin: 9px 0 4px;
+	white-space: nowrap;
+}
+
+.bumpmint-resource-links span {
+	color: #a7aaad;
+}
+
 .bumpmint-table-card,
 .bumpmint-form-card,
 .bumpmint-empty-state {
@@ -195,6 +221,16 @@
 }
 
 @media screen and (max-width: 782px) {
+	.bumpmint-page-header {
+		align-items: flex-start;
+		flex-direction: column;
+		gap: 0;
+	}
+
+	.bumpmint-resource-links {
+		margin-top: 0;
+	}
+
 	.bumpmint-form-card {
 		padding-right: 16px;
 		padding-left: 16px;

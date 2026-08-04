@@ -177,10 +177,7 @@ class BumpMint_Admin {
 		$rules = BumpMint_Rules::get_rules();
 		?>
 		<div class="wrap bumpmint-admin-wrap">
-			<h1 class="wp-heading-inline"><?php esc_html_e( 'Order Bumps', 'bumpmint-order-bump-for-woocommerce' ); ?></h1>
-			<a href="<?php echo esc_url( $this->get_new_url() ); ?>" class="page-title-action">
-				<?php esc_html_e( 'Add New', 'bumpmint-order-bump-for-woocommerce' ); ?>
-			</a>
+			<?php $this->render_page_header( __( 'Order Bumps', 'bumpmint-order-bump-for-woocommerce' ), true ); ?>
 			<hr class="wp-header-end" />
 
 			<?php if ( isset( $_GET['bumpmint_updated'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only success flag. ?>
@@ -323,7 +320,13 @@ class BumpMint_Admin {
 		$errors = get_settings_errors( 'bumpmint' );
 		?>
 		<div class="wrap bumpmint-admin-wrap">
-			<h1><?php echo $rule['id'] ? esc_html__( 'Edit order bump', 'bumpmint-order-bump-for-woocommerce' ) : esc_html__( 'New order bump', 'bumpmint-order-bump-for-woocommerce' ); ?></h1>
+			<?php
+			$this->render_page_header(
+				$rule['id']
+					? __( 'Edit order bump', 'bumpmint-order-bump-for-woocommerce' )
+					: __( 'New order bump', 'bumpmint-order-bump-for-woocommerce' )
+			);
+			?>
 
 			<?php foreach ( $errors as $error ) : ?>
 				<div class="notice notice-error"><p><?php echo esc_html( $error['message'] ); ?></p></div>
@@ -600,6 +603,36 @@ class BumpMint_Admin {
 					</a>
 				</div>
 			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Renders a consistent page title and discreet resource links.
+	 *
+	 * @param string $title        Page title.
+	 * @param bool   $show_add_new Whether to display the Add New action.
+	 */
+	private function render_page_header( $title, $show_add_new = false ) {
+		?>
+		<div class="bumpmint-page-header">
+			<div class="bumpmint-page-title">
+				<h1 class="wp-heading-inline"><?php echo esc_html( $title ); ?></h1>
+				<?php if ( $show_add_new ) : ?>
+					<a href="<?php echo esc_url( $this->get_new_url() ); ?>" class="page-title-action">
+						<?php esc_html_e( 'Add New', 'bumpmint-order-bump-for-woocommerce' ); ?>
+					</a>
+				<?php endif; ?>
+			</div>
+			<nav class="bumpmint-resource-links" aria-label="<?php esc_attr_e( 'BumpMint resources', 'bumpmint-order-bump-for-woocommerce' ); ?>">
+				<a href="<?php echo esc_url( BUMPMINT_SUPPORT_URL ); ?>" target="_blank" rel="noopener noreferrer">
+					<?php esc_html_e( 'Support', 'bumpmint-order-bump-for-woocommerce' ); ?>
+				</a>
+				<span aria-hidden="true">·</span>
+				<a href="<?php echo esc_url( BUMPMINT_REVIEW_URL ); ?>" target="_blank" rel="noopener noreferrer">
+					<?php esc_html_e( 'Leave a review', 'bumpmint-order-bump-for-woocommerce' ); ?>
+				</a>
+			</nav>
 		</div>
 		<?php
 	}
