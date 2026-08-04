@@ -6,7 +6,7 @@ Tested up to: 7.0
 Requires PHP: 7.4
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -121,7 +121,7 @@ BumpMint uses WooCommerce classic checkout hooks and supports:
 * Simple products and specific purchasable variations.
 * Any payment gateway that works normally with the classic WooCommerce checkout.
 
-Version 1.0.0 does **not** support WooCommerce Cart and Checkout Blocks.
+BumpMint does **not** currently support WooCommerce Cart and Checkout Blocks.
 
 == Installation ==
 
@@ -193,7 +193,7 @@ You can display it before or after the order items, before payment methods, or b
 
 = Does BumpMint support WooCommerce Checkout Blocks? =
 
-Not in version 1.0.0. BumpMint currently uses classic WooCommerce checkout hooks.
+Not currently. BumpMint uses classic WooCommerce checkout hooks.
 
 = Is BumpMint compatible with HPOS? =
 
@@ -212,6 +212,16 @@ Development is hosted on [GitHub](https://github.com/andrewaires/bumpmint). Use 
 5. Customize the offered products, secure discount, promotional banner, title, description, placeholders, and image.
 
 == Changelog ==
+
+= 1.1.0 - 2026-08-04 =
+* Added multiple trigger products with Any or All matching.
+* Added multiple independently selectable offer products to each order bump.
+* Added an option to hide offered products that are already in the cart.
+* Added server-side discounted quantity limits for each offered product, defaulting to one unit.
+* Added direct WordPress.org support and review links to BumpMint admin screens and plugin metadata.
+* Added an admin warning for plugin packages installed outside the canonical directory.
+* Fixed WooCommerce help tooltips and improved product selector removal controls.
+* Improved PHP compatibility checks and release workflow validation.
 
 = 1.0.0 - 2026-08-02 =
 * Initial release.

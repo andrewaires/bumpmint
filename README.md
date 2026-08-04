@@ -72,7 +72,7 @@ Each rule can hide offered products that are already present in the cart. This c
 - PHP 7.4 or newer.
 - WooCommerce classic checkout.
 
-WooCommerce Cart and Checkout Blocks are not supported in version 1.0.0.
+WooCommerce Cart and Checkout Blocks are not currently supported.
 
 ## Installation
 
