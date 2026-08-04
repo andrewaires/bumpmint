@@ -153,7 +153,7 @@ final class BumpMint_Plugin {
 		);
 		$message = sprintf(
 			/* translators: 1: WordPress.org plugin link, 2: GitHub Releases link. */
-			__( 'O BumpMint não foi instalado a partir do repositório oficial do WordPress.org. Isso pode fazer com que o plugin não funcione corretamente e apresente erros. Para você usar todos os nossos recursos corretamente, instale o pacote correto em %1$s ou através da versão anexada ao %2$s.', 'bumpmint-order-bump-for-woocommerce' ),
+			__( 'BumpMint was not installed from the official WordPress.org repository. This may cause the plugin to malfunction or display errors. To use all of our features correctly, install the correct package from %1$s or use the version attached to the %2$s.', 'bumpmint-order-bump-for-woocommerce' ),
 			$wordpress_org_link,
 			$github_release_link
 		);
