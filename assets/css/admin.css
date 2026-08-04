@@ -155,6 +155,14 @@
 	margin-top: 12px;
 }
 
+.bumpmint-discount-quantity label {
+	margin-right: 6px;
+}
+
+.bumpmint-discount-quantity .woocommerce-help-tip {
+	margin-right: 6px;
+}
+
 .bumpmint-image-control {
 	display: flex;
 	flex-wrap: wrap;

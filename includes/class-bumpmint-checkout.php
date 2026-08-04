@@ -33,6 +33,7 @@ class BumpMint_Checkout {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'wp_ajax_' . self::AJAX_ACTION, array( $this, 'ajax_toggle' ) );
 		add_action( 'wp_ajax_nopriv_' . self::AJAX_ACTION, array( $this, 'ajax_toggle' ) );
+		add_filter( 'woocommerce_update_cart_validation', array( $this, 'validate_cart_item_quantity' ), 10, 4 );
 		add_action( 'woocommerce_before_calculate_totals', array( $this, 'apply_cart_item_prices' ), 20 );
 		add_action( 'woocommerce_checkout_create_order_line_item', array( $this, 'add_order_item_audit_meta' ), 10, 4 );
 	}
@@ -308,6 +309,50 @@ class BumpMint_Checkout {
 	}
 
 	/**
+	 * Rejects cart updates above a rule's discounted quantity limit.
+	 *
+	 * @param bool   $passed        Whether WooCommerce validation has passed.
+	 * @param string $cart_item_key Cart item key.
+	 * @param array  $cart_item     Cart item data.
+	 * @param mixed  $quantity      Requested quantity.
+	 * @return bool
+	 */
+	public function validate_cart_item_quantity( $passed, $cart_item_key, $cart_item, $quantity ) {
+		unset( $cart_item_key );
+
+		if ( ! $passed || empty( $cart_item['bumpmint_rule_id'] ) ) {
+			return $passed;
+		}
+
+		$rule       = BumpMint_Rules::get_rule( $cart_item['bumpmint_rule_id'] );
+		$product_id = $this->get_cart_item_product_id( $cart_item );
+		if ( ! $this->has_discount_quantity_limit( $rule, $product_id ) ) {
+			return $passed;
+		}
+
+		$max_quantity = max( 1, absint( $rule['max_quantity'] ) );
+		if ( (float) $quantity <= $max_quantity ) {
+			return $passed;
+		}
+
+		$product_name = ! empty( $cart_item['data'] ) && is_a( $cart_item['data'], 'WC_Product' )
+			? wp_strip_all_tags( $cart_item['data']->get_name() )
+			: __( 'this order bump product', 'bumpmint-order-bump-for-woocommerce' );
+
+		wc_add_notice(
+			sprintf(
+				/* translators: 1: product name, 2: maximum discounted quantity. */
+				__( 'The discounted quantity for %1$s is limited to %2$d.', 'bumpmint-order-bump-for-woocommerce' ),
+				$product_name,
+				$max_quantity
+			),
+			'error'
+		);
+
+		return false;
+	}
+
+	/**
 	 * Recalculates every BumpMint price from canonical server-side data.
 	 *
 	 * @param WC_Cart $cart Cart instance.
@@ -330,7 +375,7 @@ class BumpMint_Checkout {
 				$rules_by_id[ (string) $saved_rule['id'] ] = $saved_rule;
 			}
 
-			foreach ( $cart->get_cart() as $cart_item ) {
+			foreach ( $cart->get_cart() as $cart_item_key => $cart_item ) {
 				if ( empty( $cart_item['bumpmint_rule_id'] ) || empty( $cart_item['data'] ) ) {
 					continue;
 				}
@@ -343,6 +388,13 @@ class BumpMint_Checkout {
 
 				$rule_id       = (string) $cart_item['bumpmint_rule_id'];
 				$rule          = isset( $rules_by_id[ $rule_id ] ) ? $rules_by_id[ $rule_id ] : null;
+				if ( $this->has_discount_quantity_limit( $rule, $cart_product_id ) ) {
+					$max_quantity = max( 1, absint( $rule['max_quantity'] ) );
+					if ( isset( $cart_item['quantity'] ) && (float) $cart_item['quantity'] > $max_quantity ) {
+						$cart->set_quantity( $cart_item_key, $max_quantity, false );
+					}
+				}
+
 				if ( $rule && ! array_key_exists( $rule_id, $rule_eligibility ) ) {
 					$rule_eligibility[ $rule_id ] = 'active' === $rule['status'] && BumpMint_Conditions::matches( $rule, $cart );
 				}
@@ -461,6 +513,20 @@ class BumpMint_Checkout {
 		}
 
 		return isset( $cart_item['product_id'] ) ? absint( $cart_item['product_id'] ) : 0;
+	}
+
+	/**
+	 * Checks whether a saved rule limits the discounted quantity for a product.
+	 *
+	 * @param array|null $rule       Rule data.
+	 * @param int        $product_id Exact product or variation ID.
+	 * @return bool
+	 */
+	private function has_discount_quantity_limit( $rule, $product_id ) {
+		return is_array( $rule )
+			&& 'active' === $rule['status']
+			&& ! empty( $rule['discount_enabled'] )
+			&& in_array( (int) $product_id, $rule['bump_product_ids'], true );
 	}
 
 	/**

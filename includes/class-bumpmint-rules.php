@@ -206,6 +206,16 @@ class BumpMint_Rules {
 		$discount_enabled = isset( $data['discount_enabled'] ) && '1' === (string) $data['discount_enabled'];
 		$discount_type    = isset( $data['discount_type'] ) ? sanitize_key( $data['discount_type'] ) : 'percentage';
 		$discount_value   = isset( $data['discount_value'] ) ? wc_format_decimal( $data['discount_value'] ) : '0';
+		$max_quantity_raw = isset( $data['max_quantity'] ) ? trim( (string) $data['max_quantity'] ) : '1';
+
+		if ( ! preg_match( '/^[1-9][0-9]*$/', $max_quantity_raw ) ) {
+			return new WP_Error(
+				'bumpmint_invalid_max_quantity',
+				__( 'Enter a maximum discounted quantity of 1 or more.', 'bumpmint-order-bump-for-woocommerce' )
+			);
+		}
+
+		$max_quantity = absint( $max_quantity_raw );
 
 		if ( $discount_enabled ) {
 			if ( ! in_array( $discount_type, array( 'fixed', 'percentage' ), true ) ) {
@@ -249,6 +259,7 @@ class BumpMint_Rules {
 			'discount_enabled'      => $discount_enabled,
 			'discount_type'         => $discount_type,
 			'discount_value'        => $discount_value,
+			'max_quantity'          => $max_quantity,
 			'badge_text'            => $badge_text,
 			'offer_title'           => isset( $data['offer_title'] ) ? sanitize_text_field( $data['offer_title'] ) : '',
 			'description'           => isset( $data['description'] ) ? sanitize_textarea_field( $data['description'] ) : '',
@@ -442,6 +453,7 @@ class BumpMint_Rules {
 			'discount_enabled'      => false,
 			'discount_type'         => 'percentage',
 			'discount_value'        => '0',
+			'max_quantity'          => 1,
 			'badge_text'            => '',
 			'offer_title'           => isset( $rule['titulo'] ) ? sanitize_text_field( $rule['titulo'] ) : '',
 			'description'           => isset( $rule['descricao'] ) ? sanitize_textarea_field( $rule['descricao'] ) : '',
@@ -454,6 +466,7 @@ class BumpMint_Rules {
 		$normalized['condition_product_ids'] = $condition_product_ids;
 		$normalized['bump_product_ids']      = $bump_product_ids;
 		$normalized['hide_if_in_cart']       = ! empty( $normalized['hide_if_in_cart'] );
+		$normalized['max_quantity']          = max( 1, absint( $normalized['max_quantity'] ) );
 		$normalized['condition_match']       = in_array( $normalized['condition_match'], array( 'any', 'all' ), true )
 			? $normalized['condition_match']
 			: 'any';

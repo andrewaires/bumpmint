@@ -27,6 +27,7 @@ Create multiple order bumps, target each offer with flexible cart rules, include
 * **Target offers more precisely** — Display each bump when any or all selected products are in the cart, or according to cart subtotal or item quantity.
 * **Avoid redundant offers** — Optionally hide each offered product when that exact product or variation is already in the cart.
 * **Protect promotional pricing** — Discounts and final prices are calculated and enforced on the server.
+* **Limit discounted quantities** — Set how many units of each offered product can receive the order bump discount; the default is one.
 * **Stay in control** — Customize the product, position, image, headline, description, and promotional banner.
 * **Keep checkout fast** — BumpMint uses lightweight assets and loads them only where they are needed.
 
@@ -88,7 +89,7 @@ Match the offer to your product and campaign:
 
 The browser never decides which product price should be charged. It sends only the saved rule ID, the selected offer product ID, and the requested selection state.
 
-BumpMint then verifies that the product belongs to the saved rule and validates the current cart condition, purchasability, and stock on the server. The final price is recalculated from trusted WooCommerce data and enforced during cart total calculations.
+BumpMint then verifies that the product belongs to the saved rule and validates the current cart condition, purchasability, stock, and discounted quantity on the server. The final price is recalculated from trusted WooCommerce data and enforced during cart total calculations.
 
 ### Start selling more in three simple steps
 
@@ -149,6 +150,10 @@ Yes. Select **Always show** as the display rule.
 = Can I select multiple trigger and offer products? =
 
 Yes. A product rule can match any selected trigger product or require all selected trigger products to be in the cart. Each selected offer product is displayed separately so the customer can accept one or more offers.
+
+= Can I limit how many discounted units a customer can buy? =
+
+Yes. Each order bump has a maximum discounted quantity for every offered product. The default is one unit, and the limit is enforced on the server when the cart is updated and totals are calculated.
 
 = Can I target the cart value or number of items? =
 

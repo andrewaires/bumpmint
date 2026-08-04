@@ -301,6 +301,7 @@ class BumpMint_Admin {
 			'discount_enabled'      => false,
 			'discount_type'         => 'percentage',
 			'discount_value'        => '',
+			'max_quantity'          => 1,
 			'badge_text'            => '',
 			'offer_title'           => '',
 			'description'           => '',
@@ -484,6 +485,24 @@ class BumpMint_Admin {
 										min="0"
 										step="any"
 										class="small-text"
+									/>
+								</div>
+								<div class="bumpmint-discount-fields bumpmint-discount-quantity">
+									<label for="bumpmint-max-quantity"><?php esc_html_e( 'Maximum discounted quantity', 'bumpmint-order-bump-for-woocommerce' ); ?></label>
+									<?php
+									echo wc_help_tip( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WooCommerce escapes help tip output.
+										__( 'Maximum quantity of each offered product that can receive the order bump discount. For example, a limit of 2 allows up to two discounted units of each offered product.', 'bumpmint-order-bump-for-woocommerce' )
+									);
+									?>
+									<input
+										type="number"
+										id="bumpmint-max-quantity"
+										name="bumpmint_rule[max_quantity]"
+										value="<?php echo esc_attr( $rule['max_quantity'] ); ?>"
+										min="1"
+										step="1"
+										class="small-text"
+										required
 									/>
 								</div>
 								<p class="description"><?php esc_html_e( 'The final price is calculated and enforced on the server. Percentage discounts are limited to 100%.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
