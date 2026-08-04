@@ -287,6 +287,7 @@ class BumpMint_Checkout {
 			'bumpmint_rule_id' => $rule['id'],
 			'bumpmint_source'  => 'order_bump',
 		);
+		$notices_before = wc_get_notices();
 
 		if ( $product->is_type( 'variation' ) ) {
 			$cart_item_key = $cart->add_to_cart(
@@ -301,7 +302,9 @@ class BumpMint_Checkout {
 		}
 
 		if ( ! $cart_item_key ) {
-			wp_send_json_error( array( 'message' => __( 'WooCommerce could not add this product to the cart.', 'bumpmint-order-bump-for-woocommerce' ) ), 409 );
+			$message = $this->get_new_cart_error_message( $notices_before );
+			wc_set_notices( $notices_before );
+			wp_send_json_error( array( 'message' => $message ), 409 );
 		}
 
 		$cart->calculate_totals();
@@ -460,6 +463,50 @@ class BumpMint_Checkout {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Returns errors added by the latest WooCommerce cart operation.
+	 *
+	 * Links are removed because feedback is rendered as plain text inside the
+	 * order bump card. Existing notices are excluded and restored by the caller.
+	 *
+	 * @param array $notices_before Notices queued before the cart operation.
+	 * @return string
+	 */
+	private function get_new_cart_error_message( array $notices_before ) {
+		$errors_before = isset( $notices_before['error'] ) && is_array( $notices_before['error'] )
+			? $notices_before['error']
+			: array();
+		$errors_after  = wc_get_notices( 'error' );
+		$new_errors    = array_slice( $errors_after, count( $errors_before ) );
+		$messages      = array();
+
+		foreach ( $new_errors as $error ) {
+			$raw_message = is_array( $error ) && isset( $error['notice'] )
+				? $error['notice']
+				: $error;
+			if ( ! is_string( $raw_message ) ) {
+				continue;
+			}
+
+			$plain_message = preg_replace( '/<a\b[^>]*>.*?<\/a>/is', '', $raw_message );
+			$plain_message = html_entity_decode(
+				wp_strip_all_tags( (string) $plain_message ),
+				ENT_QUOTES,
+				get_bloginfo( 'charset' )
+			);
+			$plain_message = trim( wp_strip_all_tags( $plain_message ) );
+			if ( '' !== $plain_message ) {
+				$messages[] = $plain_message;
+			}
+		}
+
+		if ( ! empty( $messages ) ) {
+			return implode( ' ', array_unique( $messages ) );
+		}
+
+		return __( 'WooCommerce could not add this product to the cart.', 'bumpmint-order-bump-for-woocommerce' );
 	}
 
 	/**

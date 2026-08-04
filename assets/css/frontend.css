@@ -132,14 +132,15 @@
 	margin: 12px 0 0;
 	padding-left: 36px;
 	color: var(--bumpmint-text-muted);
-	font-size: 13px;
+	font-size: 14px;
 	line-height: 1.5;
 }
 
 .bumpmint-bump-feedback {
 	margin: 8px 0 0;
 	color: #b32d2e;
-	font-size: 12px;
+	font-size: 15px;
+	font-weight: 600;
 	line-height: 1.4;
 }
 

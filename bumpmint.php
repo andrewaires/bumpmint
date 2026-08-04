@@ -3,7 +3,7 @@
  * Plugin Name:       BumpMint - Order Bump for WooCommerce
  * Plugin URI:        https://github.com/andrewaires/bumpmint
  * Description:       Create targeted WooCommerce order bumps with flexible display rules, secure server-side discounts, and multiple checkout positions.
- * Version:           1.1.0
+ * Version:           1.1.1
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            Andrew Aires
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BUMPMINT_VERSION', '1.1.0' );
+define( 'BUMPMINT_VERSION', '1.1.1' );
 define( 'BUMPMINT_PLUGIN_SLUG', 'bumpmint-order-bump-for-woocommerce' );
 define( 'BUMPMINT_PLUGIN_FILE', __FILE__ );
 define( 'BUMPMINT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );

@@ -6,7 +6,7 @@ Tested up to: 7.0
 Requires PHP: 7.4
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 1.1.0
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -212,6 +212,10 @@ Development is hosted on [GitHub](https://github.com/andrewaires/bumpmint). Use 
 5. Customize the offered products, secure discount, promotional banner, title, description, placeholders, and image.
 
 == Changelog ==
+
+= 1.1.1 - 2026-08-04 =
+* Fixed rejected cart additions to display the specific WooCommerce error inside the order bump without duplicating it globally.
+* Improved order bump error and description readability.
 
 = 1.1.0 - 2026-08-04 =
 * Added multiple trigger products with Any or All matching.
