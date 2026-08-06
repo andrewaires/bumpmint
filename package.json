@@ -1,0 +1,25 @@
+{
+	"name": "bumpmint-order-bump-for-woocommerce",
+	"version": "1.1.3",
+	"private": true,
+	"description": "Local integration tests for BumpMint.",
+	"scripts": {
+		"env:start": "wp-env start",
+		"env:stop": "wp-env stop",
+		"test": "npm run test:env:start && npm run test:setup && npm run test:php",
+		"test:env:start": "wp-env start --config=.wp-env.test.json",
+		"test:env:stop": "wp-env stop --config=.wp-env.test.json",
+		"test:setup": "wp-env run cli --config=.wp-env.test.json --env-cwd=wp-content/plugins/bumpmint-order-bump-for-woocommerce composer -- install --no-interaction --prefer-dist --no-progress",
+		"test:php": "wp-env run cli --config=.wp-env.test.json --env-cwd=wp-content/plugins/bumpmint-order-bump-for-woocommerce ./vendor/bin/phpunit -- -c phpunit.xml.dist"
+	},
+	"devDependencies": {
+		"@wordpress/env": "11.12.0"
+	},
+	"overrides": {
+		"adm-zip": "0.6.0"
+	},
+	"engines": {
+		"node": ">=18.12.0",
+		"npm": ">=8.19.2"
+	}
+}

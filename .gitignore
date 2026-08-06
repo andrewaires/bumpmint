@@ -3,3 +3,7 @@
 build/
 node_modules/
 vendor/
+.agents/
+.codex/
+.phpunit.result.cache
+.wp-env.override.json

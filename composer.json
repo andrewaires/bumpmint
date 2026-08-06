@@ -1,0 +1,15 @@
+{
+	"name": "andrewaires/bumpmint-order-bump-for-woocommerce",
+	"description": "PHP dependencies for the BumpMint integration test suite.",
+	"type": "wordpress-plugin",
+	"license": "GPL-2.0-or-later",
+	"require-dev": {
+		"yoast/phpunit-polyfills": "^1.1.0"
+	},
+	"config": {
+		"platform": {
+			"php": "7.4.0"
+		},
+		"sort-packages": true
+	}
+}

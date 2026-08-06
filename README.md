@@ -89,6 +89,30 @@ WooCommerce Cart and Checkout Blocks are not currently supported.
 2. Open **Plugins > Add New > Upload Plugin**.
 3. Upload the ZIP and activate BumpMint.
 
+## Local integration tests
+
+The integration suite runs the plugin with WordPress 7.0.2, WooCommerce 10.9.0, and PHP 8.3 through `wp-env`.
+
+Requirements: Node.js 18.12 or newer, npm 8.19.2 or newer, and Docker.
+
+```bash
+npm ci
+npm test
+```
+
+The automated suite uses an isolated environment at `http://localhost:8889`, so it cannot reset data from the development site. The test environment remains available after the run so failures can be inspected locally. Stop it when finished:
+
+```bash
+npm run test:env:stop
+```
+
+For manual browser testing, start the separate development environment at `http://localhost:8888`:
+
+```bash
+npm run env:start
+npm run env:stop
+```
+
 ## License
 
 BumpMint is licensed under the [GNU General Public License v2.0 or later](LICENSE).

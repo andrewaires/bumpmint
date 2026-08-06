@@ -1,13 +1,27 @@
 /.wordpress-org
 /.git
 /.github
+/.agents
+/.codex
 /build
 /node_modules
+/tests
+/vendor
 /wordpress-org-translations
 
+.wp-env.json
+.wp-env.test.json
+.phpunit.result.cache
 .distignore
 .gitattributes
 .gitignore
+AGENTS.md
+composer.json
+composer.lock
+package-lock.json
+package.json
+phpunit.xml.dist
+PROJECT_CONTEXT.md
 README.md
 PUBLISHING.md
 WORDPRESS-ORG-TRANSLATIONS.md
