@@ -203,15 +203,26 @@ class BumpMint_Conditions {
 				continue;
 			}
 
-			if ( isset( $cart_item['line_subtotal'] ) && is_numeric( $cart_item['line_subtotal'] ) ) {
-				$subtotal += (float) $cart_item['line_subtotal'];
-				continue;
-			}
-
 			$quantity = isset( $cart_item['quantity'] ) ? max( 0, (int) $cart_item['quantity'] ) : 0;
 			$product  = isset( $cart_item['data'] ) ? $cart_item['data'] : null;
-			if ( $product && is_callable( array( $product, 'get_price' ) ) ) {
-				$subtotal += (float) $product->get_price() * $quantity;
+
+			// line_subtotal can still represent the previous totals calculation.
+			if ( $quantity && is_a( $product, 'WC_Product' ) ) {
+				$current_price = $product->get_price();
+				if ( is_numeric( $current_price ) ) {
+					$subtotal += (float) wc_get_price_excluding_tax(
+						$product,
+						array(
+							'qty'   => $quantity,
+							'price' => (float) $current_price,
+						)
+					);
+					continue;
+				}
+			}
+
+			if ( isset( $cart_item['line_subtotal'] ) && is_numeric( $cart_item['line_subtotal'] ) ) {
+				$subtotal += (float) $cart_item['line_subtotal'];
 			}
 		}
 
