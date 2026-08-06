@@ -6,7 +6,7 @@ Tested up to: 7.0
 Requires PHP: 7.4
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 1.1.2
+Stable tag: 1.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -89,7 +89,7 @@ Match the offer to your product and campaign:
 
 The browser never decides which product price should be charged. It sends only the saved rule ID, the selected offer product ID, and the requested selection state.
 
-BumpMint then verifies that the product belongs to the saved rule and validates the current cart condition, purchasability, stock, and discounted quantity on the server. The final price is recalculated from trusted WooCommerce data and enforced during cart total calculations.
+BumpMint then verifies that the product belongs to the saved rule and validates the current cart condition, purchasability, stock, and discounted quantity on the server. The discount is calculated from the effective WooCommerce price, synchronized with the selected offer, and enforced during cart total calculations.
 
 ### Start selling more in three simple steps
 
@@ -212,6 +212,12 @@ Development is hosted on [GitHub](https://github.com/andrewaires/bumpmint). Use 
 5. Customize the offered products, secure discount, promotional banner, title, description, placeholders, and image.
 
 == Changelog ==
+
+= 1.1.3 - 2026-08-06 =
+* Applied order bump discounts to effective WooCommerce prices, including compatible product filters and cart pricing adjustments.
+* Synchronized selected offer cards, descriptions, placeholders, and fixed-discount badges with the price charged in the cart.
+* Prevented repeated total calculations from compounding order bump discounts while preserving regular cart lines of the same product.
+* Moved stored order bump rules out of WordPress autoloaded options, including a one-time migration for existing installations.
 
 = 1.1.2 - 2026-08-05 =
 * Fixed subtotal rules to evaluate current cart prices after cart changes instead of stale line totals.

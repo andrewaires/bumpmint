@@ -3,7 +3,7 @@
  * Plugin Name:       BumpMint - Order Bump for WooCommerce
  * Plugin URI:        https://github.com/andrewaires/bumpmint
  * Description:       Create targeted WooCommerce order bumps with flexible display rules, secure server-side discounts, and multiple checkout positions.
- * Version:           1.1.2
+ * Version:           1.1.3
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            Andrew Aires
@@ -24,12 +24,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BUMPMINT_VERSION', '1.1.2' );
+define( 'BUMPMINT_VERSION', '1.1.3' );
 define( 'BUMPMINT_PLUGIN_SLUG', 'bumpmint-order-bump-for-woocommerce' );
 define( 'BUMPMINT_PLUGIN_FILE', __FILE__ );
 define( 'BUMPMINT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BUMPMINT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'BUMPMINT_OPTION_KEY', 'bumpmint_rules' );
+define( 'BUMPMINT_STORAGE_VERSION', 1 );
+define( 'BUMPMINT_STORAGE_VERSION_KEY', 'bumpmint_storage_version' );
 define( 'BUMPMINT_SUPPORT_URL', 'https://wordpress.org/support/plugin/bumpmint-order-bump-for-woocommerce/' );
 define( 'BUMPMINT_REVIEW_URL', 'https://wordpress.org/support/plugin/bumpmint-order-bump-for-woocommerce/reviews/#new-post' );
 
@@ -65,6 +67,7 @@ final class BumpMint_Plugin {
 	 */
 	private function __construct() {
 		add_action( 'init', array( $this, 'init' ) );
+		add_action( 'admin_init', 'bumpmint_maybe_upgrade_storage' );
 		add_action( 'before_woocommerce_init', array( $this, 'declare_hpos_compatibility' ) );
 		add_action( 'admin_notices', array( $this, 'nonstandard_installation_notice' ) );
 		add_action( 'network_admin_notices', array( $this, 'nonstandard_installation_notice' ) );
@@ -210,11 +213,37 @@ final class BumpMint_Plugin {
 BumpMint_Plugin::instance();
 
 /**
+ * Keeps the rules option out of WordPress' autoloaded option collection.
+ *
+ * The migration runs once and uses the public API available since WordPress
+ * 6.4, which is older than the plugin's minimum supported version.
+ */
+function bumpmint_maybe_upgrade_storage() {
+	$installed_version = absint( get_option( BUMPMINT_STORAGE_VERSION_KEY, 0 ) );
+	if ( $installed_version >= BUMPMINT_STORAGE_VERSION ) {
+		return;
+	}
+
+	$autoload_disabled = false;
+	if ( false === get_option( BUMPMINT_OPTION_KEY, false ) ) {
+		$autoload_disabled = add_option( BUMPMINT_OPTION_KEY, array(), '', false );
+	}
+
+	if ( ! $autoload_disabled ) {
+		wp_set_option_autoload( BUMPMINT_OPTION_KEY, false );
+		$autoload_disabled = ! array_key_exists( BUMPMINT_OPTION_KEY, wp_load_alloptions() );
+	}
+
+	if ( $autoload_disabled ) {
+		// This tiny marker avoids an extra database query on every admin request.
+		update_option( BUMPMINT_STORAGE_VERSION_KEY, BUMPMINT_STORAGE_VERSION, true );
+	}
+}
+
+/**
  * Runs on plugin activation and ensures the rules option exists.
  */
 function bumpmint_activate() {
-	if ( false === get_option( BUMPMINT_OPTION_KEY, false ) ) {
-		add_option( BUMPMINT_OPTION_KEY, array() );
-	}
+	bumpmint_maybe_upgrade_storage();
 }
 register_activation_hook( __FILE__, 'bumpmint_activate' );

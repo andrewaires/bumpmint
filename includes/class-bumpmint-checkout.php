@@ -33,6 +33,13 @@ class BumpMint_Checkout {
 	private $enforced_cart_prices = array();
 
 	/**
+	 * Effective base prices keyed by cart item key for synchronized rendering.
+	 *
+	 * @var array<string,float>
+	 */
+	private $effective_cart_base_prices = array();
+
+	/**
 	 * Whether the narrow cart-price filters were registered in this request.
 	 *
 	 * @var bool
@@ -173,7 +180,7 @@ class BumpMint_Checkout {
 			$this->render_card(
 				$offer['rule'],
 				$offer['product'],
-				(bool) $offer['cart_item_key']
+				$offer['cart_item_key']
 			);
 		}
 		echo '</div>';
@@ -211,15 +218,19 @@ class BumpMint_Checkout {
 	/**
 	 * Renders one order bump card.
 	 *
-	 * @param array      $rule       Rule data.
-	 * @param WC_Product $product    Offered product.
-	 * @param bool       $is_checked Whether this rule's cart item exists.
+	 * @param array       $rule          Rule data.
+	 * @param WC_Product  $product       Offered product.
+	 * @param string|null $cart_item_key Matching cart item key when selected.
 	 */
-	private function render_card( array $rule, $product, $is_checked ) {
-		$rule_id    = $rule['id'];
-		$product_id = $product->get_id();
-		$input_id   = 'bumpmint-bump-' . sanitize_html_class( $rule_id . '-' . $product_id );
-		$prices     = BumpMint_Rules::calculate_prices( $rule, $product );
+	private function render_card( array $rule, $product, $cart_item_key ) {
+		$rule_id              = $rule['id'];
+		$product_id           = $product->get_id();
+		$is_checked           = is_string( $cart_item_key ) && '' !== $cart_item_key;
+		$effective_base_price = $is_checked && array_key_exists( $cart_item_key, $this->effective_cart_base_prices )
+			? $this->effective_cart_base_prices[ $cart_item_key ]
+			: null;
+		$input_id             = 'bumpmint-bump-' . sanitize_html_class( $rule_id . '-' . $product_id );
+		$prices               = BumpMint_Rules::calculate_prices( $rule, $product, $effective_base_price );
 
 		$offer_display_price = wc_get_price_to_display( $product, array( 'price' => $prices['offer'] ) );
 		$formatted_price     = wp_strip_all_tags( wc_price( $offer_display_price ) );
@@ -236,7 +247,7 @@ class BumpMint_Checkout {
 			: sprintf( __( 'Add %1$s for only %2$s.', 'bumpmint-order-bump-for-woocommerce' ), $product->get_name(), $formatted_price );
 		$description = $this->replace_placeholders( $description, $product->get_name(), $formatted_price );
 
-		$badge_text = BumpMint_Rules::get_badge_text( $rule, $product );
+		$badge_text = BumpMint_Rules::get_badge_text( $rule, $product, $effective_base_price );
 		$image_id   = ! empty( $rule['image_id'] ) ? absint( $rule['image_id'] ) : 0;
 		?>
 		<div id="<?php echo esc_attr( $input_id ); ?>-card" class="bumpmint-bump-box">
@@ -260,7 +271,7 @@ class BumpMint_Checkout {
 					?>
 					<span class="bumpmint-bump-copy">
 						<span class="bumpmint-bump-title"><?php echo esc_html( $title ); ?></span>
-						<span class="bumpmint-bump-price"><?php echo wp_kses_post( BumpMint_Rules::get_price_html( $rule, $product ) ); ?></span>
+						<span class="bumpmint-bump-price"><?php echo wp_kses_post( BumpMint_Rules::get_price_html( $rule, $product, $effective_base_price ) ); ?></span>
 					</span>
 				</label>
 
@@ -452,6 +463,7 @@ class BumpMint_Checkout {
 		}
 
 		$this->applying_prices = true;
+		$this->effective_cart_base_prices = array();
 
 		try {
 			$rules_by_id = array();
@@ -556,14 +568,9 @@ class BumpMint_Checkout {
 				$offer_price     = wc_format_decimal( $prices['offer'] );
 				$cart_item['data']->set_price( $offer_price );
 
+				$this->effective_cart_base_prices[ $cart_item_key ] = $prices['base'];
 				$this->enforced_cart_prices[ spl_object_id( $cart_item['data'] ) ] = $offer_price;
 				$this->register_price_enforcement_filters();
-
-				unset(
-					$cart->cart_contents[ $cart_item_key ]['bumpmint_had_discount'],
-					$cart->cart_contents[ $cart_item_key ]['bumpmint_last_eligible'],
-					$cart->cart_contents[ $cart_item_key ]['bumpmint_requires_review']
-				);
 			}
 		} finally {
 			$this->applying_prices = false;

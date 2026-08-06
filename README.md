@@ -21,7 +21,7 @@ Present relevant add-ons when customers are ready to complete their purchase. Bu
 - Position offers before/after order items, before payment, or before the Place order button.
 - Customize the banner, product image, title, description, and dynamic placeholders.
 - Support simple products and specific purchasable variations.
-- Validate rules, products, stock, and final prices on the server.
+- Apply discounts to effective WooCommerce prices and validate rules, products, stock, and final prices on the server.
 - Keep checkout lightweight, responsive, and synchronized with WooCommerce AJAX updates.
 - Ready for community translations through the official WordPress.org translation platform.
 - Run with WooCommerce HPOS compatibility.
@@ -61,7 +61,7 @@ Items added by BumpMint are excluded from subtotal and quantity rules so an offe
 
 ## Secure discounts
 
-The browser sends only the saved rule ID, the selected offer product ID, and the requested selection state. BumpMint verifies that the product belongs to the saved rule, resolves its canonical price on the server, validates the current condition and stock, calculates the discount, limits the discounted quantity, and enforces the trusted price during WooCommerce cart total calculations.
+The browser sends only the saved rule ID, the selected offer product ID, and the requested selection state. BumpMint verifies that the product belongs to the saved rule, resolves its effective WooCommerce price on the server, validates the current condition and stock, calculates the discount, limits the discounted quantity, synchronizes the selected offer, and enforces the trusted price during WooCommerce cart total calculations.
 
 Each rule can hide offered products that are already present in the cart. This check applies independently to each product, while products added through that same bump remain visible so the customer can remove them.
 

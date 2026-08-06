@@ -46,7 +46,7 @@ class BumpMint_Rules {
 		}
 
 		if ( $needs_migration ) {
-			update_option( BUMPMINT_OPTION_KEY, $rules );
+			update_option( BUMPMINT_OPTION_KEY, $rules, false );
 		}
 
 		return $rules;
@@ -298,7 +298,7 @@ class BumpMint_Rules {
 			$rules[] = $sanitized;
 		}
 
-		update_option( BUMPMINT_OPTION_KEY, $rules );
+		update_option( BUMPMINT_OPTION_KEY, $rules, false );
 		return $sanitized;
 	}
 
@@ -317,7 +317,7 @@ class BumpMint_Rules {
 			)
 		);
 
-		update_option( BUMPMINT_OPTION_KEY, $rules );
+		update_option( BUMPMINT_OPTION_KEY, $rules, false );
 	}
 
 	/**
@@ -359,18 +359,19 @@ class BumpMint_Rules {
 	/**
 	 * Returns formatted price HTML for a rule.
 	 *
-	 * @param array           $rule    Rule data.
-	 * @param WC_Product|null $product Product instance.
+	 * @param array           $rule       Rule data.
+	 * @param WC_Product|null $product    Product instance.
+	 * @param float|null      $base_price Effective cart price override.
 	 * @return string
 	 */
-	public static function get_price_html( array $rule, $product = null ) {
+	public static function get_price_html( array $rule, $product = null, $base_price = null ) {
 		$product_ids = isset( $rule['bump_product_ids'] ) ? self::sanitize_product_ids( $rule['bump_product_ids'] ) : array();
 		$product     = $product ? $product : ( ! empty( $product_ids ) ? wc_get_product( $product_ids[0] ) : null );
 		if ( ! $product ) {
 			return '—';
 		}
 
-		$prices        = self::calculate_prices( $rule, $product );
+		$prices        = self::calculate_prices( $rule, $product, $base_price );
 		$base_display  = wc_get_price_to_display( $product, array( 'price' => $prices['base'] ) );
 		$offer_display = wc_get_price_to_display( $product, array( 'price' => $prices['offer'] ) );
 
@@ -384,11 +385,12 @@ class BumpMint_Rules {
 	/**
 	 * Returns the configured or generated badge text.
 	 *
-	 * @param array           $rule    Rule data.
-	 * @param WC_Product|null $product Product instance.
+	 * @param array           $rule       Rule data.
+	 * @param WC_Product|null $product    Product instance.
+	 * @param float|null      $base_price Effective cart price override.
 	 * @return string
 	 */
-	public static function get_badge_text( array $rule, $product = null ) {
+	public static function get_badge_text( array $rule, $product = null, $base_price = null ) {
 		if ( ! empty( $rule['badge_text'] ) ) {
 			return $rule['badge_text'];
 		}
@@ -402,7 +404,7 @@ class BumpMint_Rules {
 			return sprintf( __( '%s%% OFF', 'bumpmint-order-bump-for-woocommerce' ), wc_format_decimal( $rule['discount_value'] ) );
 		}
 
-		$prices   = self::calculate_prices( $rule, $product );
+		$prices   = self::calculate_prices( $rule, $product, $base_price );
 		$discount = max( 0.0, $prices['base'] - $prices['offer'] );
 
 		/* translators: %s: formatted fixed discount amount. */

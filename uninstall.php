@@ -15,3 +15,4 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 }
 
 delete_option( 'bumpmint_rules' );
+delete_option( 'bumpmint_storage_version' );
