@@ -26,6 +26,20 @@ class BumpMint_Checkout {
 	private $applying_prices = false;
 
 	/**
+	 * Trusted offer prices keyed by the exact cart product object.
+	 *
+	 * @var array<int,string>
+	 */
+	private $enforced_cart_prices = array();
+
+	/**
+	 * Whether the narrow cart-price filters were registered in this request.
+	 *
+	 * @var bool
+	 */
+	private $price_filters_registered = false;
+
+	/**
 	 * Registers checkout, AJAX, and pricing hooks.
 	 */
 	public function __construct() {
@@ -35,7 +49,8 @@ class BumpMint_Checkout {
 		add_action( 'wp_ajax_' . self::AJAX_ACTION, array( $this, 'ajax_toggle' ) );
 		add_action( 'wp_ajax_nopriv_' . self::AJAX_ACTION, array( $this, 'ajax_toggle' ) );
 		add_filter( 'woocommerce_update_cart_validation', array( $this, 'validate_cart_item_quantity' ), 10, 4 );
-		add_action( 'woocommerce_before_calculate_totals', array( $this, 'apply_cart_item_prices' ), 20 );
+		add_action( 'woocommerce_before_calculate_totals', array( $this, 'restore_effective_cart_item_prices' ), 1 );
+		add_action( 'woocommerce_before_calculate_totals', array( $this, 'apply_cart_item_prices' ), PHP_INT_MAX );
 		add_filter( 'woocommerce_update_order_review_fragments', array( $this, 'refresh_before_payment_fragment' ) );
 		add_action( 'woocommerce_review_order_after_order_total', array( $this, 'acknowledge_removed_bump_items' ), 99 );
 		add_action( 'woocommerce_after_checkout_validation', array( $this, 'validate_bump_eligibility_before_checkout' ), 10, 2 );
@@ -384,6 +399,45 @@ class BumpMint_Checkout {
 	}
 
 	/**
+	 * Restores current WooCommerce prices before other cart pricing hooks run.
+	 *
+	 * This prevents repeated totals calculations from discounting a previous
+	 * BumpMint offer price again while allowing legitimate pricing extensions to
+	 * adjust the restored cart product before BumpMint runs last.
+	 *
+	 * @param WC_Cart $cart Cart instance.
+	 * @return void
+	 */
+	public function restore_effective_cart_item_prices( $cart ) {
+		if ( ! $cart || ( is_admin() && ! wp_doing_ajax() ) ) {
+			return;
+		}
+
+		$this->enforced_cart_prices = array();
+
+		foreach ( $cart->get_cart() as $cart_item ) {
+			if ( empty( $cart_item['bumpmint_rule_id'] ) || empty( $cart_item['data'] ) ) {
+				continue;
+			}
+
+			$product_id        = $this->get_cart_item_product_id( $cart_item );
+			$canonical_product = $product_id ? wc_get_product( $product_id ) : false;
+			if ( ! $canonical_product ) {
+				continue;
+			}
+
+			$effective_price = $canonical_product->get_price();
+			if ( ! is_numeric( $effective_price ) ) {
+				$effective_price = $canonical_product->get_price( 'edit' );
+			}
+
+			if ( is_numeric( $effective_price ) ) {
+				$cart_item['data']->set_price( wc_format_decimal( max( 0.0, (float) $effective_price ) ) );
+			}
+		}
+	}
+
+	/**
 	 * Removes ineligible BumpMint lines and recalculates eligible prices.
 	 *
 	 * @param WC_Cart $cart Cart instance.
@@ -479,7 +533,13 @@ class BumpMint_Checkout {
 
 				if ( ! $is_eligible ) {
 					if ( $canonical_product ) {
-						$cart_item['data']->set_price( $canonical_product->get_price( 'edit' ) );
+						$effective_price = $canonical_product->get_price();
+						if ( ! is_numeric( $effective_price ) ) {
+							$effective_price = $canonical_product->get_price( 'edit' );
+						}
+						if ( is_numeric( $effective_price ) ) {
+							$cart_item['data']->set_price( wc_format_decimal( max( 0.0, (float) $effective_price ) ) );
+						}
 					}
 					continue;
 				}
@@ -491,8 +551,13 @@ class BumpMint_Checkout {
 					}
 				}
 
-				$prices = BumpMint_Rules::calculate_prices( $rule, $canonical_product );
-				$cart_item['data']->set_price( wc_format_decimal( $prices['offer'] ) );
+				$effective_price = $cart_item['data']->get_price();
+				$prices          = BumpMint_Rules::calculate_prices( $rule, $canonical_product, $effective_price );
+				$offer_price     = wc_format_decimal( $prices['offer'] );
+				$cart_item['data']->set_price( $offer_price );
+
+				$this->enforced_cart_prices[ spl_object_id( $cart_item['data'] ) ] = $offer_price;
+				$this->register_price_enforcement_filters();
 
 				unset(
 					$cart->cart_contents[ $cart_item_key ]['bumpmint_had_discount'],
@@ -503,6 +568,43 @@ class BumpMint_Checkout {
 		} finally {
 			$this->applying_prices = false;
 		}
+	}
+
+	/**
+	 * Enforces a trusted offer price only for its exact cart product object.
+	 *
+	 * Legitimate product-price filters still determine the effective base before
+	 * the BumpMint discount. This final filter prevents those same callbacks from
+	 * replacing the already calculated offer price in WooCommerce totals.
+	 *
+	 * @param mixed      $price   Filtered WooCommerce price.
+	 * @param WC_Product $product Product instance.
+	 * @return mixed
+	 */
+	public function enforce_cart_item_offer_price( $price, $product ) {
+		if ( ! is_object( $product ) ) {
+			return $price;
+		}
+
+		$object_id = spl_object_id( $product );
+		return array_key_exists( $object_id, $this->enforced_cart_prices )
+			? $this->enforced_cart_prices[ $object_id ]
+			: $price;
+	}
+
+	/**
+	 * Registers price enforcement only after this request has an eligible bump.
+	 *
+	 * @return void
+	 */
+	private function register_price_enforcement_filters() {
+		if ( $this->price_filters_registered ) {
+			return;
+		}
+
+		add_filter( 'woocommerce_product_get_price', array( $this, 'enforce_cart_item_offer_price' ), PHP_INT_MAX, 2 );
+		add_filter( 'woocommerce_product_variation_get_price', array( $this, 'enforce_cart_item_offer_price' ), PHP_INT_MAX, 2 );
+		$this->price_filters_registered = true;
 	}
 
 	/**

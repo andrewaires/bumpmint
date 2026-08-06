@@ -321,17 +321,25 @@ class BumpMint_Rules {
 	}
 
 	/**
-	 * Calculates the canonical base and offer prices on the server.
+	 * Calculates the effective base and offer prices on the server.
 	 *
-	 * @param array           $rule    Rule data.
-	 * @param WC_Product|null $product Product instance.
+	 * @param array           $rule       Rule data.
+	 * @param WC_Product|null $product    Product instance.
+	 * @param float|null      $base_price Effective cart price override.
 	 * @return array
 	 */
-	public static function calculate_prices( array $rule, $product = null ) {
+	public static function calculate_prices( array $rule, $product = null, $base_price = null ) {
 		$product_ids = isset( $rule['bump_product_ids'] ) ? self::sanitize_product_ids( $rule['bump_product_ids'] ) : array();
 		$product     = $product ? $product : ( ! empty( $product_ids ) ? wc_get_product( $product_ids[0] ) : null );
-		$base        = $product ? max( 0.0, (float) $product->get_price( 'edit' ) ) : 0.0;
-		$offer       = $base;
+		$base_price  = null !== $base_price ? $base_price : ( $product ? $product->get_price() : null );
+
+		// Invalid third-party filter output must never turn a paid product free.
+		if ( ! is_numeric( $base_price ) && $product ) {
+			$base_price = $product->get_price( 'edit' );
+		}
+
+		$base  = is_numeric( $base_price ) ? max( 0.0, (float) $base_price ) : 0.0;
+		$offer = $base;
 
 		if ( ! empty( $rule['discount_enabled'] ) ) {
 			$value = max( 0.0, (float) $rule['discount_value'] );
