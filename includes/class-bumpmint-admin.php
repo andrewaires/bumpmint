@@ -431,15 +431,18 @@ class BumpMint_Admin {
 							</td>
 						</tr>
 						<tr>
-							<th scope="row"><label for="bumpmint-position"><?php esc_html_e( 'Checkout position', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
+							<th scope="row"><label for="bumpmint-position"><?php esc_html_e( 'Classic checkout position', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
 							<td>
-								<select id="bumpmint-position" name="bumpmint_rule[position]">
-									<?php foreach ( BumpMint_Positions::get_positions() as $position_key => $position ) : ?>
-										<option value="<?php echo esc_attr( $position_key ); ?>" <?php selected( $rule['position'], $position_key ); ?>>
-											<?php echo esc_html( $position['label'] ); ?>
-										</option>
-									<?php endforeach; ?>
+								<select id="bumpmint-position" name="bumpmint_rule[position]" aria-describedby="bumpmint-position-description">
+									<optgroup label="<?php esc_attr_e( 'Classic checkout only', 'bumpmint-order-bump-for-woocommerce' ); ?>">
+										<?php foreach ( BumpMint_Positions::get_positions() as $position_key => $position ) : ?>
+											<option value="<?php echo esc_attr( $position_key ); ?>" <?php selected( $rule['position'], $position_key ); ?>>
+												<?php echo esc_html( $position['label'] ); ?>
+											</option>
+										<?php endforeach; ?>
+									</optgroup>
 								</select>
+								<p id="bumpmint-position-description" class="description"><?php esc_html_e( 'Checkout Blocks always display offers below the order summary. The positions in this select apply only to classic checkout.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
 							</td>
 						</tr>
 						<tr>

@@ -3,7 +3,7 @@
  * Plugin Name:       BumpMint - Order Bump for WooCommerce
  * Plugin URI:        https://github.com/andrewaires/bumpmint
  * Description:       Create targeted WooCommerce order bumps with flexible display rules, secure server-side discounts, and multiple checkout positions.
- * Version:           1.1.3
+ * Version:           1.2.0
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            Andrew Aires
@@ -24,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BUMPMINT_VERSION', '1.1.3' );
+define( 'BUMPMINT_VERSION', '1.2.0' );
 define( 'BUMPMINT_PLUGIN_SLUG', 'bumpmint-order-bump-for-woocommerce' );
 define( 'BUMPMINT_PLUGIN_FILE', __FILE__ );
 define( 'BUMPMINT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -93,7 +93,12 @@ final class BumpMint_Plugin {
 		require_once BUMPMINT_PLUGIN_DIR . 'includes/class-bumpmint-checkout.php';
 
 		new BumpMint_Admin();
-		new BumpMint_Checkout();
+		$checkout = new BumpMint_Checkout();
+
+		if ( interface_exists( '\Automattic\WooCommerce\Blocks\Integrations\IntegrationInterface' ) ) {
+			require_once BUMPMINT_PLUGIN_DIR . 'includes/class-bumpmint-checkout-block.php';
+			new BumpMint_Checkout_Block( $checkout );
+		}
 	}
 
 	/**
@@ -101,10 +106,10 @@ final class BumpMint_Plugin {
 	 *
 	 * - custom_order_tables (HPOS): the plugin does not read or write order data
 	 *   directly in the legacy table, so it is compatible.
-	 * - cart_checkout_blocks: the plugin uses the classic
-	 *   woocommerce_review_order_before_payment hook, which is not fired by
-	 *   block checkout. It is declared incompatible to prevent unexpected
-	 *   behavior in that scenario.
+	 * - cart_checkout_blocks: the checkout UI uses the official Blocks
+	 *   integration registry, Store API extensions, and checkout SlotFill. The
+	 *   plugin has no cart-page UI; its pricing and cart rules remain compatible
+	 *   with Store API requests.
 	 */
 	public function declare_hpos_compatibility() {
 		if ( class_exists( '\Automattic\WooCommerce\Utilities\FeaturesUtil' ) ) {
@@ -116,7 +121,7 @@ final class BumpMint_Plugin {
 			\Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility(
 				'cart_checkout_blocks',
 				BUMPMINT_PLUGIN_FILE,
-				false
+				true
 			);
 		}
 	}

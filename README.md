@@ -22,7 +22,7 @@ Present relevant add-ons when customers are ready to complete their purchase. Bu
 - Customize the banner, product image, title, description, and dynamic placeholders.
 - Support simple products and specific purchasable variations.
 - Apply discounts to effective WooCommerce prices and validate rules, products, stock, and final prices on the server.
-- Keep checkout lightweight, responsive, and synchronized with WooCommerce AJAX updates.
+- Keep classic and block checkout lightweight, responsive, and synchronized with WooCommerce cart updates.
 - Ready for community translations through the official WordPress.org translation platform.
 - Run with WooCommerce HPOS compatibility.
 
@@ -53,7 +53,7 @@ Present relevant add-ons when customers are ready to complete their purchase. Bu
 BumpMint can show an offer when:
 
 - Any or all selected products or variations are in the cart.
-- The classic checkout is displayed.
+- The checkout is displayed.
 - The cart subtotal is greater or less than a configured value.
 - The cart item quantity is greater or less than a configured value.
 
@@ -70,9 +70,9 @@ Each rule can hide offered products that are already present in the cart. This c
 - WordPress 6.5 or newer.
 - WooCommerce 8.0 or newer.
 - PHP 7.4 or newer.
-- WooCommerce classic checkout.
+- WooCommerce classic checkout or Checkout Block.
 
-WooCommerce Cart and Checkout Blocks are not currently supported.
+The plugin has no cart-page offer interface, so no Cart Block integration is needed.
 
 ## Installation
 

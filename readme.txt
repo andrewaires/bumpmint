@@ -6,7 +6,7 @@ Tested up to: 7.0
 Requires PHP: 7.4
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 1.1.3
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -29,7 +29,7 @@ Create multiple order bumps, target each offer with flexible cart rules, include
 * **Protect promotional pricing** — Discounts and final prices are calculated and enforced on the server.
 * **Limit discounted quantities** — Set how many units of each offered product can receive the order bump discount; the default is one.
 * **Stay in control** — Customize the product, position, image, headline, description, and promotional banner.
-* **Keep checkout fast** — BumpMint uses lightweight assets and loads them only where they are needed.
+* **Keep checkout fast** — BumpMint uses lightweight assets and loads them only where they are needed on classic or block checkout.
 
 ### Everything you can do with BumpMint
 
@@ -54,7 +54,7 @@ Fixed discounts are capped so the final product price never becomes negative.
 Choose when an order bump should appear:
 
 * **Specific products in cart** — Trigger the offer when any or all selected products or variations are present.
-* **Always show** — Display the offer on every eligible classic checkout.
+* **Always show** — Display the offer on every eligible checkout.
 * **Cart subtotal** — Show the offer when the subtotal is greater or less than a value you define.
 * **Cart item quantity** — Show the offer when the number of product units is greater or less than a value you define.
 
@@ -69,7 +69,7 @@ Place each offer where it fits your checkout strategy:
 * Before payment methods.
 * Before the **Place order** button.
 
-All positions stay synchronized with WooCommerce classic checkout updates, including a lightweight fragment for the location before payment methods.
+All positions stay synchronized with WooCommerce classic checkout updates, including a lightweight fragment for the location before payment methods. Checkout Blocks display eligible offers below the order summary because block checkout does not expose equivalent PHP hook positions.
 
 = Customize Every Offer =
 
@@ -113,15 +113,16 @@ The administration screen follows familiar WordPress patterns and shows:
 
 ### Compatibility
 
-BumpMint uses WooCommerce classic checkout hooks and supports:
+BumpMint supports:
 
 * The standard WooCommerce shortcode checkout.
+* WooCommerce Checkout Blocks through the Store API and the extension point below the order summary.
 * Compatible page-builder checkout widgets, including the native Elementor Pro Checkout widget.
 * WooCommerce High-Performance Order Storage (HPOS).
 * Simple products and specific purchasable variations.
-* Any payment gateway that works normally with the classic WooCommerce checkout.
+* Payment gateways that work normally with the selected WooCommerce checkout type.
 
-BumpMint does **not** currently support WooCommerce Cart and Checkout Blocks.
+BumpMint does not display order bumps on the cart page, so it has no Cart Block interface.
 
 == Installation ==
 
@@ -189,11 +190,11 @@ Yes. A specific variation can be used as a trigger or offered product. A variabl
 
 = Where can I display the order bump? =
 
-You can display it before or after the order items, before payment methods, or before the **Place order** button.
+On classic checkout, you can display it before or after the order items, before payment methods, or before the **Place order** button. Checkout Blocks display eligible offers below the order summary.
 
 = Does BumpMint support WooCommerce Checkout Blocks? =
 
-Not currently. BumpMint uses classic WooCommerce checkout hooks.
+Yes. BumpMint uses WooCommerce's Store API and checkout extension point. It intentionally has no Cart Block offer interface because order bumps are displayed only during checkout.
 
 = Is BumpMint compatible with HPOS? =
 
@@ -212,6 +213,12 @@ Development is hosted on [GitHub](https://github.com/andrewaires/bumpmint). Use 
 5. Customize the offered products, secure discount, promotional banner, title, description, placeholders, and image.
 
 == Changelog ==
+
+= 1.2.0 - 2026-08-08 =
+* Added WooCommerce Checkout Block support with eligible order bumps displayed below the order summary.
+* Added Store API-backed offer selection with server-side pricing, stock, quantity, and eligibility validation.
+* Kept selected offers and stale-checkout protection synchronized during Checkout Block updates.
+* Clarified that configurable checkout positions apply only to classic checkout and added Checkout Block-specific spacing.
 
 = 1.1.3 - 2026-08-06 =
 * Applied order bump discounts to effective WooCommerce prices, including compatible product filters and cart pricing adjustments.

@@ -9,6 +9,7 @@
 		<testsuite name="BumpMint integration tests">
 			<file>tests/test-effective-pricing.php</file>
 			<file>tests/test-checkout-eligibility.php</file>
+			<file>tests/test-checkout-block.php</file>
 			<file>tests/test-storage.php</file>
 		</testsuite>
 	</testsuites>

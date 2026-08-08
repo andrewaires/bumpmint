@@ -92,6 +92,10 @@ class BumpMint_Checkout {
 			return;
 		}
 
+		if ( $this->is_checkout_block_page() ) {
+			return;
+		}
+
 		wp_enqueue_style(
 			'bumpmint-frontend',
 			BUMPMINT_PLUGIN_URL . 'assets/css/frontend.css',
@@ -119,6 +123,20 @@ class BumpMint_Checkout {
 	}
 
 	/**
+	 * Determines whether the assigned checkout page uses Checkout Blocks.
+	 *
+	 * @return bool
+	 */
+	private function is_checkout_block_page() {
+		if ( ! function_exists( 'wc_get_page_id' ) || ! function_exists( 'has_block' ) ) {
+			return false;
+		}
+
+		$checkout_page_id = wc_get_page_id( 'checkout' );
+		return $checkout_page_id > 0 && has_block( 'woocommerce/checkout', $checkout_page_id );
+	}
+
+	/**
 	 * Renders all applicable rules assigned to one checkout position.
 	 *
 	 * @param string $position_key Position key.
@@ -129,43 +147,9 @@ class BumpMint_Checkout {
 			return;
 		}
 
-		$cart                 = WC()->cart;
 		$is_table_position    = isset( $position['context'] ) && 'table' === $position['context'];
 		$is_persistent_anchor = BumpMint_Positions::BEFORE_PAYMENT === $position_key && ! $is_table_position;
-		$applicable_rules     = array();
-		if ( $cart && ! $cart->is_empty() ) {
-			foreach ( BumpMint_Rules::get_rules() as $rule ) {
-				if ( 'active' !== $rule['status'] || $position_key !== $rule['position'] ) {
-					continue;
-				}
-
-				if ( ! BumpMint_Conditions::matches( $rule, $cart ) ) {
-					continue;
-				}
-
-				foreach ( $rule['bump_product_ids'] as $bump_product_id ) {
-					$product = wc_get_product( $bump_product_id );
-					if ( ! $product ) {
-						continue;
-					}
-
-					$cart_item_key = $this->find_cart_item_key_for_rule( $rule['id'], $product->get_id(), $cart );
-					if ( ! $cart_item_key && ! empty( $rule['hide_if_in_cart'] ) && $this->cart_contains_product( $product->get_id(), $cart ) ) {
-						continue;
-					}
-
-					if ( ! $cart_item_key && ! $this->is_product_available( $product, $cart ) ) {
-						continue;
-					}
-
-					$applicable_rules[] = array(
-						'rule'          => $rule,
-						'product'       => $product,
-						'cart_item_key' => $cart_item_key,
-					);
-				}
-			}
-		}
+		$applicable_rules     = $this->get_applicable_offers( WC()->cart, $position_key );
 
 		if ( empty( $applicable_rules ) && ! $is_persistent_anchor ) {
 			return;
@@ -188,6 +172,58 @@ class BumpMint_Checkout {
 		if ( $is_table_position ) {
 			echo '</td></tr>';
 		}
+	}
+
+	/**
+	 * Returns offers that are currently eligible for one checkout surface.
+	 *
+	 * Passing no position returns offers from every configured classic position.
+	 * The Checkout Block uses that mode because its public extension API exposes a
+	 * single stable order-summary location rather than classic PHP hook positions.
+	 *
+	 * @param WC_Cart|null $cart         Cart instance.
+	 * @param string|null  $position_key Optional classic checkout position.
+	 * @return array<int,array{rule:array,product:WC_Product,cart_item_key:string|null}>
+	 */
+	public function get_applicable_offers( $cart, $position_key = null ) {
+		$applicable_offers = array();
+		if ( ! $cart || $cart->is_empty() ) {
+			return $applicable_offers;
+		}
+
+		foreach ( BumpMint_Rules::get_rules() as $rule ) {
+			if ( 'active' !== $rule['status'] || ( null !== $position_key && $position_key !== $rule['position'] ) ) {
+				continue;
+			}
+
+			if ( ! BumpMint_Conditions::matches( $rule, $cart ) ) {
+				continue;
+			}
+
+			foreach ( $rule['bump_product_ids'] as $bump_product_id ) {
+				$product = wc_get_product( $bump_product_id );
+				if ( ! $product ) {
+					continue;
+				}
+
+				$cart_item_key = $this->find_cart_item_key_for_rule( $rule['id'], $product->get_id(), $cart );
+				if ( ! $cart_item_key && ! empty( $rule['hide_if_in_cart'] ) && $this->cart_contains_product( $product->get_id(), $cart ) ) {
+					continue;
+				}
+
+				if ( ! $cart_item_key && ! $this->is_product_available( $product, $cart ) ) {
+					continue;
+				}
+
+				$applicable_offers[] = array(
+					'rule'          => $rule,
+					'product'       => $product,
+					'cart_item_key' => $cart_item_key,
+				);
+			}
+		}
+
+		return $applicable_offers;
 	}
 
 	/**
@@ -223,35 +259,15 @@ class BumpMint_Checkout {
 	 * @param string|null $cart_item_key Matching cart item key when selected.
 	 */
 	private function render_card( array $rule, $product, $cart_item_key ) {
-		$rule_id              = $rule['id'];
-		$product_id           = $product->get_id();
-		$is_checked           = is_string( $cart_item_key ) && '' !== $cart_item_key;
-		$effective_base_price = $is_checked && array_key_exists( $cart_item_key, $this->effective_cart_base_prices )
-			? $this->effective_cart_base_prices[ $cart_item_key ]
-			: null;
-		$input_id             = 'bumpmint-bump-' . sanitize_html_class( $rule_id . '-' . $product_id );
-		$prices               = BumpMint_Rules::calculate_prices( $rule, $product, $effective_base_price );
-
-		$offer_display_price = wc_get_price_to_display( $product, array( 'price' => $prices['offer'] ) );
-		$formatted_price     = wp_strip_all_tags( wc_price( $offer_display_price ) );
-
-		$title = ! empty( $rule['offer_title'] )
-			? $rule['offer_title']
-			/* translators: %s: product name. */
-			: sprintf( __( 'Add %s to your order', 'bumpmint-order-bump-for-woocommerce' ), $product->get_name() );
-		$title = $this->replace_placeholders( $title, $product->get_name(), $formatted_price );
-
-		$description = ! empty( $rule['description'] )
-			? $rule['description']
-			/* translators: 1: product name, 2: formatted price. */
-			: sprintf( __( 'Add %1$s for only %2$s.', 'bumpmint-order-bump-for-woocommerce' ), $product->get_name(), $formatted_price );
-		$description = $this->replace_placeholders( $description, $product->get_name(), $formatted_price );
-
-		$badge_text = BumpMint_Rules::get_badge_text( $rule, $product, $effective_base_price );
+		$view_data  = $this->get_offer_view_data( $rule, $product, $cart_item_key );
+		$rule_id    = $view_data['rule_id'];
+		$product_id = $view_data['product_id'];
+		$is_checked = $view_data['selected'];
+		$input_id   = 'bumpmint-bump-' . sanitize_html_class( $rule_id . '-' . $product_id );
 		$image_id   = ! empty( $rule['image_id'] ) ? absint( $rule['image_id'] ) : 0;
 		?>
 		<div id="<?php echo esc_attr( $input_id ); ?>-card" class="bumpmint-bump-box">
-			<div class="bumpmint-badge"><?php echo esc_html( $badge_text ); ?></div>
+			<div class="bumpmint-badge"><?php echo esc_html( $view_data['badge'] ); ?></div>
 			<div class="bumpmint-bump-content">
 				<label for="<?php echo esc_attr( $input_id ); ?>" class="bumpmint-bump-label">
 					<input
@@ -270,16 +286,70 @@ class BumpMint_Checkout {
 					}
 					?>
 					<span class="bumpmint-bump-copy">
-						<span class="bumpmint-bump-title"><?php echo esc_html( $title ); ?></span>
-						<span class="bumpmint-bump-price"><?php echo wp_kses_post( BumpMint_Rules::get_price_html( $rule, $product, $effective_base_price ) ); ?></span>
+						<span class="bumpmint-bump-title"><?php echo esc_html( $view_data['title'] ); ?></span>
+						<span class="bumpmint-bump-price"><?php echo wp_kses_post( $view_data['price_html'] ); ?></span>
 					</span>
 				</label>
 
-				<p class="bumpmint-bump-description"><?php echo esc_html( $description ); ?></p>
+				<p class="bumpmint-bump-description"><?php echo esc_html( $view_data['description'] ); ?></p>
 				<p class="bumpmint-bump-feedback" role="status" aria-live="polite"></p>
 			</div>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Builds presentation data shared by classic and block checkout cards.
+	 *
+	 * @param array       $rule          Rule data.
+	 * @param WC_Product  $product       Offered product.
+	 * @param string|null $cart_item_key Matching cart item key when selected.
+	 * @return array<string,mixed>
+	 */
+	public function get_offer_view_data( array $rule, $product, $cart_item_key ) {
+		$is_selected          = is_string( $cart_item_key ) && '' !== $cart_item_key;
+		$effective_base_price = $is_selected && array_key_exists( $cart_item_key, $this->effective_cart_base_prices )
+			? $this->effective_cart_base_prices[ $cart_item_key ]
+			: null;
+		$prices               = BumpMint_Rules::calculate_prices( $rule, $product, $effective_base_price );
+		$offer_display_price  = wc_get_price_to_display( $product, array( 'price' => $prices['offer'] ) );
+		$formatted_price      = wp_strip_all_tags( wc_price( $offer_display_price ) );
+		$product_name         = $product->get_name();
+
+		$title = ! empty( $rule['offer_title'] )
+			? $rule['offer_title']
+			/* translators: %s: product name. */
+			: sprintf( __( 'Add %s to your order', 'bumpmint-order-bump-for-woocommerce' ), $product_name );
+		$title = $this->replace_placeholders( $title, $product_name, $formatted_price );
+
+		$description = ! empty( $rule['description'] )
+			? $rule['description']
+			/* translators: 1: product name, 2: formatted price. */
+			: sprintf( __( 'Add %1$s for only %2$s.', 'bumpmint-order-bump-for-woocommerce' ), $product_name, $formatted_price );
+		$description = $this->replace_placeholders( $description, $product_name, $formatted_price );
+
+		$image_id  = ! empty( $rule['image_id'] ) ? absint( $rule['image_id'] ) : $product->get_image_id();
+		$image_url = $image_id ? wp_get_attachment_image_url( $image_id, 'thumbnail' ) : '';
+		$image_alt = $image_id ? get_post_meta( $image_id, '_wp_attachment_image_alt', true ) : '';
+
+		if ( ! $image_url ) {
+			$image_url = wc_placeholder_img_src( 'thumbnail' );
+		}
+		if ( ! is_string( $image_alt ) || '' === trim( $image_alt ) ) {
+			$image_alt = $product_name;
+		}
+
+		return array(
+			'rule_id'     => (string) $rule['id'],
+			'product_id'  => (int) $product->get_id(),
+			'selected'    => $is_selected,
+			'badge'       => BumpMint_Rules::get_badge_text( $rule, $product, $effective_base_price ),
+			'title'       => $title,
+			'description' => $description,
+			'price_html'  => wp_kses_post( BumpMint_Rules::get_price_html( $rule, $product, $effective_base_price ) ),
+			'image_url'   => $image_url,
+			'image_alt'   => $image_alt,
+		);
 	}
 
 	/**
@@ -292,22 +362,44 @@ class BumpMint_Checkout {
 	public function ajax_toggle() {
 		check_ajax_referer( self::NONCE_ACTION, 'nonce' );
 
-		$cart = WC()->cart;
-		if ( ! $cart ) {
-			wp_send_json_error( array( 'message' => __( 'The cart is unavailable.', 'bumpmint-order-bump-for-woocommerce' ) ), 400 );
-		}
-
 		$rule_id    = isset( $_POST['rule_id'] ) ? sanitize_text_field( wp_unslash( $_POST['rule_id'] ) ) : '';
 		$product_id = isset( $_POST['product_id'] ) ? absint( wp_unslash( $_POST['product_id'] ) ) : 0;
 		$add        = isset( $_POST['add'] ) && '1' === sanitize_text_field( wp_unslash( $_POST['add'] ) );
+		$result     = $this->update_offer_selection( $rule_id, $product_id, $add, WC()->cart );
+
+		if ( is_wp_error( $result ) ) {
+			$status = absint( $result->get_error_data() );
+			wp_send_json_error( array( 'message' => $result->get_error_message() ), $status ? $status : 400 );
+		}
+
+		wp_send_json_success( $result );
+	}
+
+	/**
+	 * Applies a trusted offer selection to a WooCommerce cart.
+	 *
+	 * @param string       $rule_id    Saved rule ID.
+	 * @param int          $product_id Offered product or variation ID.
+	 * @param bool         $add        Whether the offer should be selected.
+	 * @param WC_Cart|null $cart       Cart instance.
+	 * @return array<string,string>|WP_Error
+	 */
+	public function update_offer_selection( $rule_id, $product_id, $add, $cart = null ) {
+		if ( ! $cart ) {
+			return new WP_Error( 'bumpmint_cart_unavailable', __( 'The cart is unavailable.', 'bumpmint-order-bump-for-woocommerce' ), 400 );
+		}
+
+		$rule_id    = sanitize_text_field( (string) $rule_id );
+		$product_id = absint( $product_id );
+		$add        = (bool) $add;
 		$rule       = $rule_id ? BumpMint_Rules::get_rule( $rule_id ) : null;
 
 		if ( ! $rule || 'active' !== $rule['status'] ) {
-			wp_send_json_error( array( 'message' => __( 'This offer is no longer available.', 'bumpmint-order-bump-for-woocommerce' ) ), 404 );
+			return new WP_Error( 'bumpmint_offer_unavailable', __( 'This offer is no longer available.', 'bumpmint-order-bump-for-woocommerce' ), 404 );
 		}
 
 		if ( ! $product_id || ! in_array( $product_id, $rule['bump_product_ids'], true ) ) {
-			wp_send_json_error( array( 'message' => __( 'This product is not part of the selected offer.', 'bumpmint-order-bump-for-woocommerce' ) ), 404 );
+			return new WP_Error( 'bumpmint_product_not_in_offer', __( 'This product is not part of the selected offer.', 'bumpmint-order-bump-for-woocommerce' ), 404 );
 		}
 
 		$existing_key = $this->find_cart_item_key_for_rule( $rule_id, $product_id, $cart );
@@ -317,24 +409,24 @@ class BumpMint_Checkout {
 				$cart->remove_cart_item( $existing_key );
 			}
 			$cart->calculate_totals();
-			wp_send_json_success( array( 'cart_hash' => $cart->get_cart_hash() ) );
+			return array( 'cart_hash' => $cart->get_cart_hash() );
 		}
 
 		if ( ! empty( $rule['hide_if_in_cart'] ) && ! $existing_key && $this->cart_contains_product( $product_id, $cart ) ) {
-			wp_send_json_error( array( 'message' => __( 'This product is already in the cart.', 'bumpmint-order-bump-for-woocommerce' ) ), 409 );
+			return new WP_Error( 'bumpmint_product_in_cart', __( 'This product is already in the cart.', 'bumpmint-order-bump-for-woocommerce' ), 409 );
 		}
 
 		if ( ! BumpMint_Conditions::matches( $rule, $cart ) ) {
-			wp_send_json_error( array( 'message' => __( 'The cart no longer meets this offer’s display rule.', 'bumpmint-order-bump-for-woocommerce' ) ), 409 );
+			return new WP_Error( 'bumpmint_rule_not_matched', __( 'The cart no longer meets this offer’s display rule.', 'bumpmint-order-bump-for-woocommerce' ), 409 );
 		}
 
 		if ( $existing_key ) {
-			wp_send_json_success( array( 'cart_hash' => $cart->get_cart_hash() ) );
+			return array( 'cart_hash' => $cart->get_cart_hash() );
 		}
 
 		$product = wc_get_product( $product_id );
 		if ( ! $product || ! $this->is_product_available( $product, $cart ) ) {
-			wp_send_json_error( array( 'message' => __( 'This product is unavailable or out of stock.', 'bumpmint-order-bump-for-woocommerce' ) ), 409 );
+			return new WP_Error( 'bumpmint_product_unavailable', __( 'This product is unavailable or out of stock.', 'bumpmint-order-bump-for-woocommerce' ), 409 );
 		}
 
 		$cart_item_data = array(
@@ -358,11 +450,11 @@ class BumpMint_Checkout {
 		if ( ! $cart_item_key ) {
 			$message = $this->get_new_cart_error_message( $notices_before );
 			wc_set_notices( $notices_before );
-			wp_send_json_error( array( 'message' => $message ), 409 );
+			return new WP_Error( 'bumpmint_add_to_cart_failed', $message, 409 );
 		}
 
 		$cart->calculate_totals();
-		wp_send_json_success( array( 'cart_hash' => $cart->get_cart_hash() ) );
+		return array( 'cart_hash' => $cart->get_cart_hash() );
 	}
 
 	/**
@@ -640,13 +732,28 @@ class BumpMint_Checkout {
 	public function validate_bump_eligibility_before_checkout( $data, $errors ) {
 		unset( $data );
 
+		$messages = $this->add_pending_removal_errors( $errors );
+
+		if ( ! empty( $messages ) ) {
+			WC()->session->set( 'refresh_totals', true );
+		}
+	}
+
+	/**
+	 * Adds queued stale-offer messages to a checkout error collection.
+	 *
+	 * @param WP_Error $errors Error collection.
+	 * @param bool     $clear  Whether to clear messages after reading them.
+	 * @return string[]
+	 */
+	public function add_pending_removal_errors( $errors, $clear = false ) {
 		if ( ! WC()->session || ! is_wp_error( $errors ) ) {
-			return;
+			return array();
 		}
 
 		$pending_removals = WC()->session->get( self::SESSION_PENDING_REMOVALS, array() );
 		if ( ! is_array( $pending_removals ) || empty( $pending_removals ) ) {
-			return;
+			return array();
 		}
 
 		$messages = array();
@@ -655,14 +762,17 @@ class BumpMint_Checkout {
 				$messages[] = trim( wp_strip_all_tags( $message ) );
 			}
 		}
+		$messages = array_unique( $messages );
 
-		foreach ( array_unique( $messages ) as $message ) {
+		foreach ( $messages as $message ) {
 			$errors->add( 'bumpmint_offer_no_longer_eligible', $message );
 		}
 
-		if ( ! empty( $messages ) ) {
-			WC()->session->set( 'refresh_totals', true );
+		if ( $clear && ! empty( $messages ) ) {
+			WC()->session->set( self::SESSION_PENDING_REMOVALS, null );
 		}
+
+		return array_values( $messages );
 	}
 
 	/**

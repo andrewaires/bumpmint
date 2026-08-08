@@ -1,9 +1,18 @@
 /**
- * BumpMint classic checkout styles.
+ * BumpMint classic and block checkout styles.
  */
 
 .bumpmint-position {
 	margin: 14px 0;
+}
+
+.bumpmint-checkout-block {
+	box-sizing: border-box;
+	width: 100%;
+}
+
+.wc-block-components-totals-wrapper.slot-wrapper .bumpmint-checkout-block {
+	padding: 16px 10px;
 }
 
 .bumpmint-checkout-table-row > td {
