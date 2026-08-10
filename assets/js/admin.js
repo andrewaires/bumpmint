@@ -36,6 +36,20 @@
 		});
 	}
 
+	function updateProductTriggerFields( $form ) {
+		var isProductCondition = 'product' === $form.find( '#bumpmint-condition-type' ).val();
+		var categoriesEnabled  = $form.find( '#bumpmint-condition-category-enabled' ).is( ':checked' );
+		var hasProducts        = $form.find( '#bumpmint-condition-product option:selected' ).length > 0;
+		var $categoryRow       = $form.find( '.bumpmint-category-select-row' );
+		var $categorySelect    = $form.find( '#bumpmint-condition-category' );
+		var $matchRow          = $form.find( '#bumpmint-condition-match' ).closest( '.bumpmint-condition-fields' );
+
+		$categoryRow.toggle( isProductCondition && categoriesEnabled );
+		$categorySelect.prop( 'disabled', !( isProductCondition && categoriesEnabled ) );
+		$matchRow.toggle( isProductCondition && hasProducts );
+		$matchRow.find( ':input' ).prop( 'disabled', !( isProductCondition && hasProducts ) );
+	}
+
 	function updateDiscountFields( $form ) {
 		var enabled = $form.find( '#bumpmint-discount-enabled' ).is( ':checked' );
 		$form.find( '.bumpmint-discount-fields' ).toggle( enabled );
@@ -75,7 +89,13 @@
 	});
 
 	$( document ).on( 'change', '#bumpmint-condition-type', function () {
-		updateConditionFields( $( this ).closest( 'form' ) );
+		var $form = $( this ).closest( 'form' );
+		updateConditionFields( $form );
+		updateProductTriggerFields( $form );
+	});
+
+	$( document ).on( 'change', '#bumpmint-condition-category-enabled, #bumpmint-condition-product', function () {
+		updateProductTriggerFields( $( this ).closest( 'form' ) );
 	});
 
 	$( document ).on( 'change', '#bumpmint-discount-enabled', function () {
@@ -86,6 +106,7 @@
 		$( '.bumpmint-rule-form' ).each( function () {
 			var $form = $( this );
 			updateConditionFields( $form );
+			updateProductTriggerFields( $form );
 			updateDiscountFields( $form );
 			initializeHelpTips( $form );
 		});

@@ -104,15 +104,37 @@ class BumpMint_Rules {
 		$condition_product_ids = isset( $data['condition_product_ids'] )
 			? self::sanitize_product_ids( $data['condition_product_ids'] )
 			: array();
+		$condition_category_enabled = isset( $data['condition_category_enabled'] ) && '1' === (string) $data['condition_category_enabled'];
+		$condition_category_ids     = isset( $data['condition_category_ids'] )
+			? self::sanitize_category_ids( $data['condition_category_ids'] )
+			: array();
 		$condition_match       = isset( $data['condition_match'] ) ? sanitize_key( $data['condition_match'] ) : 'any';
 		$condition_operator    = isset( $data['condition_operator'] ) ? sanitize_key( $data['condition_operator'] ) : 'greater_than';
 		$condition_value       = isset( $data['condition_value'] ) ? wc_format_decimal( $data['condition_value'] ) : '0';
 
 		if ( BumpMint_Conditions::PRODUCT === $condition_type ) {
-			if ( empty( $condition_product_ids ) ) {
+			if ( ! in_array( $condition_match, array( 'any', 'all' ), true ) ) {
+				return new WP_Error(
+					'bumpmint_invalid_condition_match',
+					__( 'Select a valid trigger matching option.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+
+			if ( $condition_category_enabled && empty( $condition_category_ids ) ) {
+				return new WP_Error(
+					'bumpmint_trigger_category_required',
+					__( 'Select at least one trigger category or disable category triggers.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+
+			if ( ! $condition_category_enabled ) {
+				$condition_category_ids = array();
+			}
+
+			if ( empty( $condition_product_ids ) && empty( $condition_category_ids ) ) {
 				return new WP_Error(
 					'bumpmint_trigger_required',
-					__( 'Select at least one valid trigger product.', 'bumpmint-order-bump-for-woocommerce' )
+					__( 'Select at least one valid trigger product or category.', 'bumpmint-order-bump-for-woocommerce' )
 				);
 			}
 
@@ -125,11 +147,18 @@ class BumpMint_Rules {
 				}
 			}
 
-			if ( ! in_array( $condition_match, array( 'any', 'all' ), true ) ) {
-				return new WP_Error(
-					'bumpmint_invalid_condition_match',
-					__( 'Select a valid trigger matching option.', 'bumpmint-order-bump-for-woocommerce' )
-				);
+			foreach ( $condition_category_ids as $condition_category_id ) {
+				$category = get_term( $condition_category_id, 'product_cat' );
+				if ( ! $category || is_wp_error( $category ) ) {
+					return new WP_Error(
+						'bumpmint_invalid_trigger_category',
+						__( 'One or more selected trigger categories are invalid.', 'bumpmint-order-bump-for-woocommerce' )
+					);
+				}
+			}
+
+			if ( empty( $condition_product_ids ) ) {
+				$condition_match = 'any';
 			}
 		} elseif ( in_array( $condition_type, array( BumpMint_Conditions::CART_SUBTOTAL, BumpMint_Conditions::CART_QUANTITY ), true ) ) {
 			if ( ! in_array( $condition_operator, array( 'greater_than', 'less_than' ), true ) ) {
@@ -149,6 +178,15 @@ class BumpMint_Rules {
 			if ( BumpMint_Conditions::CART_QUANTITY === $condition_type ) {
 				$condition_value = (string) absint( $condition_value );
 			}
+			$condition_product_ids      = array();
+			$condition_category_enabled = false;
+			$condition_category_ids     = array();
+			$condition_match            = 'any';
+		} else {
+			$condition_product_ids      = array();
+			$condition_category_enabled = false;
+			$condition_category_ids     = array();
+			$condition_match            = 'any';
 		}
 
 		$bump_product_ids = isset( $data['bump_product_ids'] )
@@ -250,6 +288,8 @@ class BumpMint_Rules {
 			'name'                  => $name,
 			'condition_type'        => $condition_type,
 			'condition_product_ids' => $condition_product_ids,
+			'condition_category_enabled' => $condition_category_enabled,
+			'condition_category_ids' => $condition_category_ids,
 			'condition_match'       => $condition_match,
 			'condition_operator'    => $condition_operator,
 			'condition_value'       => $condition_value,
@@ -432,6 +472,10 @@ class BumpMint_Rules {
 					? $rule['bump_product_id']
 					: ( isset( $rule['bump'] ) ? $rule['bump'] : array() )
 			);
+		$condition_category_enabled = ! empty( $rule['condition_category_enabled'] );
+		$condition_category_ids     = isset( $rule['condition_category_ids'] )
+			? self::sanitize_category_ids( $rule['condition_category_ids'] )
+			: array();
 
 		$fallback_name = '';
 		if ( ! empty( $rule['name'] ) ) {
@@ -454,6 +498,8 @@ class BumpMint_Rules {
 			'name'                  => self::limit_text( sanitize_text_field( $fallback_name ), self::NAME_MAX_LENGTH ),
 			'condition_type'        => isset( $rule['gatilho'] ) ? BumpMint_Conditions::PRODUCT : BumpMint_Conditions::ALWAYS,
 			'condition_product_ids' => $condition_product_ids,
+			'condition_category_enabled' => $condition_category_enabled,
+			'condition_category_ids' => $condition_category_ids,
 			'condition_match'       => 'any',
 			'condition_operator'    => 'greater_than',
 			'condition_value'       => '0',
@@ -474,12 +520,24 @@ class BumpMint_Rules {
 
 		$normalized = wp_parse_args( $rule, $defaults );
 		$normalized['condition_product_ids'] = $condition_product_ids;
+		$normalized['condition_category_enabled'] = BumpMint_Conditions::PRODUCT === $normalized['condition_type']
+			&& $condition_category_enabled
+			&& ! empty( $condition_category_ids );
+		$normalized['condition_category_ids'] = $normalized['condition_category_enabled'] ? $condition_category_ids : array();
 		$normalized['bump_product_ids']      = $bump_product_ids;
 		$normalized['hide_if_in_cart']       = ! empty( $normalized['hide_if_in_cart'] );
 		$normalized['max_quantity']          = max( 1, absint( $normalized['max_quantity'] ) );
 		$normalized['condition_match']       = in_array( $normalized['condition_match'], array( 'any', 'all' ), true )
 			? $normalized['condition_match']
 			: 'any';
+		if ( empty( $condition_product_ids ) ) {
+			$normalized['condition_match'] = 'any';
+		}
+		if ( BumpMint_Conditions::PRODUCT !== $normalized['condition_type'] ) {
+			$normalized['condition_product_ids'] = array();
+			$normalized['condition_category_enabled'] = false;
+			$normalized['condition_category_ids'] = array();
+		}
 
 		unset(
 			$normalized['gatilho'],
@@ -502,8 +560,12 @@ class BumpMint_Rules {
 	 */
 	private static function get_fingerprint( array $rule ) {
 		$condition_product_ids = $rule['condition_product_ids'];
+		$condition_category_ids = ! empty( $rule['condition_category_enabled'] ) && isset( $rule['condition_category_ids'] )
+			? self::sanitize_category_ids( $rule['condition_category_ids'] )
+			: array();
 		$bump_product_ids      = $rule['bump_product_ids'];
 		sort( $condition_product_ids, SORT_NUMERIC );
+		sort( $condition_category_ids, SORT_NUMERIC );
 		sort( $bump_product_ids, SORT_NUMERIC );
 
 		return md5(
@@ -511,6 +573,8 @@ class BumpMint_Rules {
 				array(
 					$rule['condition_type'],
 					$condition_product_ids,
+					! empty( $condition_category_ids ),
+					$condition_category_ids,
 					$rule['condition_match'],
 					$rule['condition_operator'],
 					$rule['condition_value'],
@@ -533,6 +597,20 @@ class BumpMint_Rules {
 		$product_ids = array_filter( $product_ids );
 
 		return array_values( array_unique( $product_ids ) );
+	}
+
+	/**
+	 * Sanitizes a product category ID or list of category IDs.
+	 *
+	 * @param mixed $category_ids Product category ID or list of IDs.
+	 * @return array
+	 */
+	private static function sanitize_category_ids( $category_ids ) {
+		$category_ids = is_array( $category_ids ) ? $category_ids : array( $category_ids );
+		$category_ids = array_map( 'absint', $category_ids );
+		$category_ids = array_filter( $category_ids );
+
+		return array_values( array_unique( $category_ids ) );
 	}
 
 	/**

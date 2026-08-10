@@ -130,6 +130,12 @@ class BumpMint_Admin {
 			if ( ! isset( $data['discount_enabled'] ) ) {
 				$data['discount_enabled'] = '0';
 			}
+			if ( ! isset( $data['condition_category_enabled'] ) ) {
+				$data['condition_category_enabled'] = '0';
+			}
+			if ( ! isset( $data['condition_category_ids'] ) ) {
+				$data['condition_category_ids'] = array();
+			}
 
 			$result = BumpMint_Rules::save_rule( $rule_id, $data );
 			if ( is_wp_error( $result ) ) {
@@ -289,6 +295,8 @@ class BumpMint_Admin {
 			'name'                  => '',
 			'condition_type'        => BumpMint_Conditions::PRODUCT,
 			'condition_product_ids' => array(),
+			'condition_category_enabled' => false,
+			'condition_category_ids' => array(),
 			'condition_match'       => 'any',
 			'condition_operator'    => 'greater_than',
 			'condition_value'       => '',
@@ -380,7 +388,36 @@ class BumpMint_Admin {
 							<th scope="row"><label for="bumpmint-condition-product"><?php esc_html_e( 'Trigger products', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
 							<td>
 								<?php $this->render_product_select( 'bumpmint_rule[condition_product_ids][]', 'bumpmint-condition-product', $rule['condition_product_ids'] ); ?>
-								<p class="description"><?php esc_html_e( 'Select one or more products or variations that can trigger the offer.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+								<p class="description"><?php esc_html_e( 'Optional when category triggers are enabled. Select one or more products or variations that can trigger the offer.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+						<tr class="bumpmint-condition-fields" data-condition-types="product">
+							<th scope="row">
+								<label for="bumpmint-condition-category-enabled"><?php esc_html_e( 'Category triggers', 'bumpmint-order-bump-for-woocommerce' ); ?></label>
+								<?php
+								echo wc_help_tip( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WooCommerce escapes help tip output.
+									__( 'When enabled, a product in any selected category can trigger this offer. Products and categories are combined with OR logic. Child categories also match when a parent category is selected.', 'bumpmint-order-bump-for-woocommerce' )
+								);
+								?>
+							</th>
+							<td>
+								<label>
+									<input
+										type="checkbox"
+										id="bumpmint-condition-category-enabled"
+										name="bumpmint_rule[condition_category_enabled]"
+										value="1"
+										<?php checked( ! empty( $rule['condition_category_enabled'] ) ); ?>
+									/>
+									<?php esc_html_e( 'Also trigger this offer by product category', 'bumpmint-order-bump-for-woocommerce' ); ?>
+								</label>
+							</td>
+						</tr>
+						<tr class="bumpmint-condition-fields bumpmint-category-select-row" data-condition-types="product">
+							<th scope="row"><label for="bumpmint-condition-category"><?php esc_html_e( 'Trigger categories', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
+							<td>
+								<?php $this->render_category_select( 'bumpmint_rule[condition_category_ids][]', 'bumpmint-condition-category', $rule['condition_category_ids'] ); ?>
+								<p class="description"><?php esc_html_e( 'Select one or more categories. Any product in a selected category can trigger the offer.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
 							</td>
 						</tr>
 						<tr class="bumpmint-condition-fields" data-condition-types="product">
@@ -672,6 +709,39 @@ class BumpMint_Admin {
 	}
 
 	/**
+	 * Renders a native WooCommerce product category search field.
+	 *
+	 * @param string $name        Field name.
+	 * @param string $id_attr     Field ID.
+	 * @param array  $selected_ids Selected product category IDs.
+	 */
+	private function render_category_select( $name, $id_attr, $selected_ids ) {
+		$selected_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $selected_ids ) ) ) );
+		?>
+		<select
+			id="<?php echo esc_attr( $id_attr ); ?>"
+			name="<?php echo esc_attr( $name ); ?>"
+			class="wc-category-search"
+			style="width: min(400px, 100%);"
+			data-placeholder="<?php esc_attr_e( 'Type to search for a category…', 'bumpmint-order-bump-for-woocommerce' ); ?>"
+			data-action="woocommerce_json_search_categories"
+			data-allow_clear="true"
+			data-minimum_input_length="3"
+			data-return_id="true"
+			multiple="multiple">
+			<?php foreach ( $selected_ids as $selected_id ) : ?>
+				<?php $category = get_term( $selected_id, 'product_cat' ); ?>
+				<?php if ( $category && ! is_wp_error( $category ) ) : ?>
+					<option value="<?php echo esc_attr( $selected_id ); ?>" selected="selected">
+						<?php echo esc_html( $category->name ); ?>
+					</option>
+				<?php endif; ?>
+			<?php endforeach; ?>
+		</select>
+		<?php
+	}
+
+	/**
 	 * Returns a concise condition summary for the rules table.
 	 *
 	 * @param array $rule Rule data.
@@ -680,15 +750,25 @@ class BumpMint_Admin {
 	private function get_condition_summary( array $rule ) {
 		if ( BumpMint_Conditions::PRODUCT === $rule['condition_type'] ) {
 			$products = $this->get_products( $rule['condition_product_ids'] );
-			if ( empty( $products ) ) {
-				return __( 'Products not found', 'bumpmint-order-bump-for-woocommerce' );
+			$categories = $this->get_categories( isset( $rule['condition_category_ids'] ) ? $rule['condition_category_ids'] : array() );
+			$parts      = array();
+
+			if ( ! empty( $products ) ) {
+				$matching = 'all' === $rule['condition_match']
+					? __( 'All:', 'bumpmint-order-bump-for-woocommerce' )
+					: __( 'Any:', 'bumpmint-order-bump-for-woocommerce' );
+				$parts[] = $matching . ' ' . $this->get_product_names( $products );
 			}
 
-			$matching = 'all' === $rule['condition_match']
-				? __( 'All:', 'bumpmint-order-bump-for-woocommerce' )
-				: __( 'Any:', 'bumpmint-order-bump-for-woocommerce' );
+			if ( ! empty( $categories ) ) {
+				$parts[] = __( 'Categories:', 'bumpmint-order-bump-for-woocommerce' ) . ' ' . $this->get_category_names( $categories );
+			}
 
-			return $matching . ' ' . wp_html_excerpt( $this->get_product_names( $products ), 60, '…' );
+			if ( empty( $parts ) ) {
+				return __( 'Triggers not found', 'bumpmint-order-bump-for-woocommerce' );
+			}
+
+			return wp_html_excerpt( implode( ' ' . __( 'OR', 'bumpmint-order-bump-for-woocommerce' ) . ' ', $parts ), 100, '…' );
 		}
 
 		if ( BumpMint_Conditions::ALWAYS === $rule['condition_type'] ) {
@@ -725,6 +805,24 @@ class BumpMint_Admin {
 	}
 
 	/**
+	 * Resolves selected product categories without querying the catalog broadly.
+	 *
+	 * @param array $category_ids Product category IDs.
+	 * @return array
+	 */
+	private function get_categories( array $category_ids ) {
+		$categories = array();
+		foreach ( $category_ids as $category_id ) {
+			$category = get_term( absint( $category_id ), 'product_cat' );
+			if ( $category && ! is_wp_error( $category ) ) {
+				$categories[] = $category;
+			}
+		}
+
+		return $categories;
+	}
+
+	/**
 	 * Returns a comma-separated product name list.
 	 *
 	 * @param array $products Product objects.
@@ -738,6 +836,24 @@ class BumpMint_Admin {
 					return $product->get_name();
 				},
 				$products
+			)
+		);
+	}
+
+	/**
+	 * Returns a comma-separated category name list.
+	 *
+	 * @param array $categories Product category term objects.
+	 * @return string
+	 */
+	private function get_category_names( array $categories ) {
+		return implode(
+			', ',
+			array_map(
+				function ( $category ) {
+					return $category->name;
+				},
+				$categories
 			)
 		);
 	}

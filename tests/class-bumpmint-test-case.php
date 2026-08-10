@@ -110,6 +110,8 @@ abstract class BumpMint_Test_Case extends WP_UnitTestCase {
 				'name'                  => 'Integration test offer',
 				'condition_type'        => BumpMint_Conditions::ALWAYS,
 				'condition_product_ids' => array(),
+				'condition_category_enabled' => '0',
+				'condition_category_ids' => array(),
 				'condition_match'       => 'any',
 				'condition_operator'    => 'greater_than',
 				'condition_value'       => '0',

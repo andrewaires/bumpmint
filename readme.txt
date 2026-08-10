@@ -6,7 +6,7 @@ Tested up to: 7.0
 Requires PHP: 7.4
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,7 +24,7 @@ Create multiple order bumps, target each offer with flexible cart rules, include
 
 * **Increase average order value** — Offer relevant add-ons before the customer completes the order.
 * **Create a frictionless experience** — Customers accept an offer with one click, without leaving checkout.
-* **Target offers more precisely** — Display each bump when any or all selected products are in the cart, or according to cart subtotal or item quantity.
+* **Target offers more precisely** — Display each bump when any or all selected products are in the cart, when a product belongs to a selected category, or according to cart subtotal or item quantity.
 * **Avoid redundant offers** — Optionally hide each offered product when that exact product or variation is already in the cart.
 * **Protect promotional pricing** — Discounts and final prices are calculated and enforced on the server.
 * **Limit discounted quantities** — Set how many units of each offered product can receive the order bump discount; the default is one.
@@ -53,12 +53,14 @@ Fixed discounts are capped so the final product price never becomes negative.
 
 Choose when an order bump should appear:
 
-* **Specific products in cart** — Trigger the offer when any or all selected products or variations are present.
+* **Specific products or categories in cart** — Trigger the offer when any or all selected products or variations are present, or when a product belongs to any selected category.
 * **Always show** — Display the offer on every eligible checkout.
 * **Cart subtotal** — Show the offer when the subtotal is greater or less than a value you define.
 * **Cart item quantity** — Show the offer when the number of product units is greater or less than a value you define.
 
 Products added by BumpMint are excluded from subtotal and quantity conditions. This prevents an offer from activating or deactivating itself.
+
+Product and category triggers use OR logic and can also be configured as category-only rules. Selecting a parent category includes products in its child categories, and variations use their parent product categories.
 
 = Choose the Best Checkout Position =
 
@@ -152,6 +154,10 @@ Yes. Select **Always show** as the display rule.
 
 Yes. A product rule can match any selected trigger product or require all selected trigger products to be in the cart. Each selected offer product is displayed separately so the customer can accept one or more offers.
 
+= Can I trigger an offer by product category? =
+
+Yes. Enable category triggers and select one or more product categories. A product in any selected category can trigger the offer, and category triggers can be used without selecting a trigger product. Product and category triggers are combined with OR logic. Selecting a parent category also includes its child categories, and variations use their parent product categories.
+
 = Can I limit how many discounted units a customer can buy? =
 
 Yes. Each order bump has a maximum discounted quantity for every offered product. The default is one unit, and the limit is enforced on the server when the cart is updated and totals are calculated.
@@ -213,6 +219,12 @@ Development is hosted on [GitHub](https://github.com/andrewaires/bumpmint). Use 
 5. Customize the offered products, secure discount, promotional banner, title, description, placeholders, and image.
 
 == Changelog ==
+
+= 1.3.0 - 2026-08-10 =
+* Added product category triggers, including category-only rules and product/category OR matching.
+* Added native WooCommerce category selection with parent-category matching and variation support.
+* Added automated coverage for category eligibility, validation, duplicate detection, and admin category selection.
+* Improved eligibility messages and documentation for product and category triggers.
 
 = 1.2.0 - 2026-08-08 =
 * Added WooCommerce Checkout Block support with eligible order bumps displayed below the order summary.

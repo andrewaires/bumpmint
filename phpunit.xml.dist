@@ -11,6 +11,7 @@
 			<file>tests/test-checkout-eligibility.php</file>
 			<file>tests/test-checkout-block.php</file>
 			<file>tests/test-storage.php</file>
+			<file>tests/test-category-triggers.php</file>
 		</testsuite>
 	</testsuites>
 </phpunit>

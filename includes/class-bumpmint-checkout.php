@@ -862,12 +862,40 @@ class BumpMint_Checkout {
 				}
 			}
 
-			if ( empty( $product_names ) ) {
+			$category_names = array();
+			if ( ! empty( $rule['condition_category_enabled'] ) ) {
+				foreach ( (array) $rule['condition_category_ids'] as $category_id ) {
+					$category = get_term( absint( $category_id ), 'product_cat' );
+					if ( $category && ! is_wp_error( $category ) ) {
+						$category_names[] = wp_strip_all_tags( $category->name );
+					}
+				}
+			}
+
+			if ( empty( $product_names ) && empty( $category_names ) ) {
 				return '';
 			}
 
-			$product_list = implode( ', ', $product_names );
-			if ( isset( $rule['condition_match'] ) && 'all' === $rule['condition_match'] ) {
+			$product_list  = implode( ', ', $product_names );
+			$category_list = implode( ', ', $category_names );
+			$match_all     = isset( $rule['condition_match'] ) && 'all' === $rule['condition_match'];
+
+			if ( ! empty( $product_names ) && ! empty( $category_names ) ) {
+				if ( $match_all ) {
+					/* translators: 1: list of required product names, 2: list of eligible category names. */
+					return sprintf( __( 'To receive the discount, add all of these products to your cart: %1$s, or add a product from one of these categories: %2$s.', 'bumpmint-order-bump-for-woocommerce' ), $product_list, $category_list );
+				}
+
+				/* translators: 1: list of eligible product names, 2: list of eligible category names. */
+				return sprintf( __( 'To receive the discount, add at least one of these products to your cart: %1$s, or add a product from one of these categories: %2$s.', 'bumpmint-order-bump-for-woocommerce' ), $product_list, $category_list );
+			}
+
+			if ( ! empty( $category_names ) ) {
+				/* translators: %s: list of eligible category names. */
+				return sprintf( __( 'To receive the discount, add a product from one of these categories: %s.', 'bumpmint-order-bump-for-woocommerce' ), $category_list );
+			}
+
+			if ( $match_all ) {
 				/* translators: %s: list of required product names. */
 				return sprintf( __( 'To receive the discount, add all of these products to your cart: %s.', 'bumpmint-order-bump-for-woocommerce' ), $product_list );
 			}

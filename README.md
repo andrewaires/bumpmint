@@ -15,7 +15,7 @@ Present relevant add-ons when customers are ready to complete their purchase. Bu
 - Launch multiple named order bumps.
 - Offer fixed or percentage discounts.
 - Limit the discounted quantity of each offered product, with a secure default of one unit.
-- Trigger offers by any or all selected products, cart subtotal, item quantity, or show them every time.
+- Trigger offers by any or all selected products, selected product categories, cart subtotal, item quantity, or show them every time.
 - Include multiple separately selectable products in one order bump.
 - Optionally hide an offered product when that exact product or variation is already in the cart.
 - Position offers before/after order items, before payment, or before the Place order button.
@@ -52,12 +52,14 @@ Present relevant add-ons when customers are ready to complete their purchase. Bu
 
 BumpMint can show an offer when:
 
-- Any or all selected products or variations are in the cart.
+- Any or all selected products or variations are in the cart, or a product from a selected category is in the cart.
 - The checkout is displayed.
 - The cart subtotal is greater or less than a configured value.
 - The cart item quantity is greater or less than a configured value.
 
 Items added by BumpMint are excluded from subtotal and quantity rules so an offer cannot activate or deactivate itself.
+
+Product and category triggers are combined with OR logic. Category-only rules are supported. Selecting a parent category also matches products in its child categories, and variations use their parent product categories.
 
 ## Secure discounts
 

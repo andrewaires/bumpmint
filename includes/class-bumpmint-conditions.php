@@ -31,7 +31,7 @@ class BumpMint_Conditions {
 	public static function get_definitions() {
 		$definitions = array(
 			self::PRODUCT       => array(
-				'label'     => __( 'Specific products in cart', 'bumpmint-order-bump-for-woocommerce' ),
+				'label'     => __( 'Specific products or categories in cart', 'bumpmint-order-bump-for-woocommerce' ),
 				'evaluator' => array( __CLASS__, 'matches_product' ),
 			),
 			self::ALWAYS        => array(
@@ -102,7 +102,8 @@ class BumpMint_Conditions {
 	}
 
 	/**
-	 * Matches when any or all configured products or variations are in the cart.
+	 * Matches when any or all configured products or variations are in the cart,
+	 * or when a cart product belongs to one of the selected categories.
 	 *
 	 * @param array   $rule Rule data.
 	 * @param WC_Cart $cart Cart instance.
@@ -111,11 +112,12 @@ class BumpMint_Conditions {
 	public static function matches_product( array $rule, $cart ) {
 		$target_ids = isset( $rule['condition_product_ids'] ) ? (array) $rule['condition_product_ids'] : array();
 		$target_ids = array_values( array_unique( array_filter( array_map( 'absint', $target_ids ) ) ) );
-		if ( empty( $target_ids ) ) {
-			return false;
-		}
+		$category_ids = ! empty( $rule['condition_category_enabled'] ) && isset( $rule['condition_category_ids'] )
+			? array_values( array_unique( array_filter( array_map( 'absint', (array) $rule['condition_category_ids'] ) ) ) )
+			: array();
 
 		$cart_product_ids = array();
+		$category_matches  = false;
 		foreach ( $cart->get_cart() as $cart_item ) {
 			$product_id   = isset( $cart_item['product_id'] ) ? absint( $cart_item['product_id'] ) : 0;
 			$variation_id = isset( $cart_item['variation_id'] ) ? absint( $cart_item['variation_id'] ) : 0;
@@ -126,25 +128,96 @@ class BumpMint_Conditions {
 			if ( $variation_id ) {
 				$cart_product_ids[ $variation_id ] = true;
 			}
-		}
 
-		if ( isset( $rule['condition_match'] ) && 'all' === $rule['condition_match'] ) {
-			foreach ( $target_ids as $target_id ) {
-				if ( ! isset( $cart_product_ids[ $target_id ] ) ) {
-					return false;
+			if ( ! empty( $category_ids ) && ! self::is_own_bump_line( $rule, $cart_item ) ) {
+				$category_product_id = $product_id;
+				if ( ! $category_product_id && $variation_id ) {
+					$category_product_id = $variation_id;
+				}
+
+				if ( $category_product_id ) {
+					$cart_product         = isset( $cart_item['data'] ) && is_a( $cart_item['data'], 'WC_Product' )
+						? $cart_item['data']
+						: null;
+					$product_category_ids = self::get_product_category_ids( $category_product_id, $cart_product );
+					if ( array_intersect( $category_ids, $product_category_ids ) ) {
+						$category_matches = true;
+						break;
+					}
 				}
 			}
-
-			return true;
 		}
 
-		foreach ( $target_ids as $target_id ) {
-			if ( isset( $cart_product_ids[ $target_id ] ) ) {
-				return true;
+		$product_matches = false;
+		if ( ! empty( $target_ids ) ) {
+			if ( isset( $rule['condition_match'] ) && 'all' === $rule['condition_match'] ) {
+				$product_matches = true;
+				foreach ( $target_ids as $target_id ) {
+					if ( ! isset( $cart_product_ids[ $target_id ] ) ) {
+						$product_matches = false;
+						break;
+					}
+				}
+			} else {
+				foreach ( $target_ids as $target_id ) {
+					if ( isset( $cart_product_ids[ $target_id ] ) ) {
+						$product_matches = true;
+						break;
+					}
+				}
 			}
 		}
 
-		return false;
+		return $product_matches || $category_matches;
+	}
+
+	/**
+	 * Determines whether a cart line was created by this same order bump.
+	 *
+	 * @param array $rule      Current rule.
+	 * @param array $cart_item Cart line.
+	 * @return bool
+	 */
+	private static function is_own_bump_line( array $rule, array $cart_item ) {
+		return ! empty( $rule['id'] )
+			&& ! empty( $cart_item['bumpmint_rule_id'] )
+			&& hash_equals( (string) $rule['id'], (string) $cart_item['bumpmint_rule_id'] );
+	}
+
+	/**
+	 * Returns product category IDs, including ancestor categories.
+	 *
+	 * Variations inherit categories from their parent product.
+	 *
+	 * @param int             $product_id Product or variation ID.
+	 * @param WC_Product|null $product    Product object already present in the cart line.
+	 * @return array
+	 */
+	private static function get_product_category_ids( $product_id, $product = null ) {
+		$product = is_a( $product, 'WC_Product' ) ? $product : wc_get_product( absint( $product_id ) );
+		if ( ! $product ) {
+			return array();
+		}
+
+		if ( $product->is_type( 'variation' ) ) {
+			$product_id = $product->get_parent_id();
+		}
+
+		$terms = get_the_terms( absint( $product_id ), 'product_cat' );
+		if ( empty( $terms ) || is_wp_error( $terms ) ) {
+			return array();
+		}
+
+		$category_ids = array();
+		foreach ( $terms as $term ) {
+			$category_ids[] = (int) $term->term_id;
+			$ancestors     = get_ancestors( $term->term_id, 'product_cat', 'taxonomy' );
+			foreach ( $ancestors as $ancestor_id ) {
+				$category_ids[] = (int) $ancestor_id;
+			}
+		}
+
+		return array_values( array_unique( array_filter( $category_ids ) ) );
 	}
 
 	/**
