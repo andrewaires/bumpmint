@@ -16,6 +16,7 @@ Present relevant add-ons when customers are ready to complete their purchase. Bu
 - Offer fixed or percentage discounts.
 - Limit the discounted quantity of each offered product, with a secure default of one unit.
 - Trigger offers by any or all selected products, selected product categories, cart subtotal, item quantity, or show them every time.
+- Schedule availability for specific dates, recurring weekdays, and optional time ranges in the WordPress site timezone.
 - Include multiple separately selectable products in one order bump.
 - Optionally hide an offered product when that exact product or variation is already in the cart.
 - Position offers before/after order items, before payment, or before the Place order button.
@@ -60,6 +61,8 @@ BumpMint can show an offer when:
 Items added by BumpMint are excluded from subtotal and quantity rules so an offer cannot activate or deactivate itself.
 
 Product and category triggers are combined with OR logic. Category-only rules are supported. Selecting a parent category also matches products in its child categories, and variations use their parent product categories.
+
+Each rule can remain available every day, run only on selected calendar dates, or repeat on selected weekdays. An optional time range applies in the WordPress site timezone and may continue past midnight. The cart rule and availability schedule must both match before the offer appears.
 
 ## Secure discounts
 

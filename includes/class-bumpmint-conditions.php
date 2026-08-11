@@ -19,6 +19,10 @@ class BumpMint_Conditions {
 	const CART_SUBTOTAL = 'cart_subtotal';
 	const CART_QUANTITY = 'cart_quantity';
 
+	const SCHEDULE_ALWAYS   = 'always';
+	const SCHEDULE_DATES    = 'dates';
+	const SCHEDULE_WEEKDAYS = 'weekdays';
+
 	/**
 	 * Returns all registered condition definitions.
 	 *
@@ -91,6 +95,10 @@ class BumpMint_Conditions {
 			return false;
 		}
 
+		if ( ! self::matches_schedule( $rule ) ) {
+			return false;
+		}
+
 		$type       = isset( $rule['condition_type'] ) ? $rule['condition_type'] : self::PRODUCT;
 		$definition = self::get_definition( $type );
 
@@ -99,6 +107,66 @@ class BumpMint_Conditions {
 		}
 
 		return (bool) call_user_func( $definition['evaluator'], $rule, $cart );
+	}
+
+	/**
+	 * Evaluates a rule's availability schedule in the WordPress site timezone.
+	 *
+	 * An overnight range belongs to the day on which it starts. For example,
+	 * Wednesday 22:00–02:00 remains active until Thursday at 02:00.
+	 *
+	 * @param array                  $rule Rule data.
+	 * @param DateTimeInterface|null $now  Optional current time for deterministic tests.
+	 * @return bool
+	 */
+	public static function matches_schedule( array $rule, $now = null ) {
+		$schedule_type = isset( $rule['schedule_type'] ) ? sanitize_key( $rule['schedule_type'] ) : self::SCHEDULE_ALWAYS;
+		if ( ! in_array( $schedule_type, array( self::SCHEDULE_ALWAYS, self::SCHEDULE_DATES, self::SCHEDULE_WEEKDAYS ), true ) ) {
+			return false;
+		}
+
+		if ( $now instanceof DateTimeInterface ) {
+			$current = new DateTimeImmutable( '@' . $now->getTimestamp() );
+			$current = $current->setTimezone( wp_timezone() );
+		} else {
+			$current = current_datetime();
+		}
+
+		$schedule_day = $current;
+		if ( ! empty( $rule['schedule_time_enabled'] ) ) {
+			$start_minutes = self::schedule_time_to_minutes( isset( $rule['schedule_start_time'] ) ? $rule['schedule_start_time'] : '' );
+			$end_minutes   = self::schedule_time_to_minutes( isset( $rule['schedule_end_time'] ) ? $rule['schedule_end_time'] : '' );
+
+			if ( null === $start_minutes || null === $end_minutes || $start_minutes === $end_minutes ) {
+				return false;
+			}
+
+			$current_minutes = ( (int) $current->format( 'G' ) * 60 ) + (int) $current->format( 'i' );
+			if ( $start_minutes < $end_minutes ) {
+				if ( $current_minutes < $start_minutes || $current_minutes >= $end_minutes ) {
+					return false;
+				}
+			} elseif ( $current_minutes < $end_minutes ) {
+				$schedule_day = $current->modify( '-1 day' );
+			} elseif ( $current_minutes < $start_minutes ) {
+				return false;
+			}
+		}
+
+		if ( self::SCHEDULE_ALWAYS === $schedule_type ) {
+			return true;
+		}
+
+		if ( self::SCHEDULE_DATES === $schedule_type ) {
+			$dates = isset( $rule['schedule_dates'] ) ? (array) $rule['schedule_dates'] : array();
+			return in_array( $schedule_day->format( 'Y-m-d' ), $dates, true );
+		}
+
+		$weekdays = isset( $rule['schedule_weekdays'] )
+			? array_values( array_unique( array_map( 'absint', (array) $rule['schedule_weekdays'] ) ) )
+			: array();
+
+		return in_array( (int) $schedule_day->format( 'N' ), $weekdays, true );
 	}
 
 	/**
@@ -339,5 +407,21 @@ class BumpMint_Conditions {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Converts a strict 24-hour time string into minutes after midnight.
+	 *
+	 * @param mixed $time Time in H:i format.
+	 * @return int|null
+	 */
+	private static function schedule_time_to_minutes( $time ) {
+		$time = is_string( $time ) ? trim( $time ) : '';
+		if ( ! preg_match( '/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/', $time ) ) {
+			return null;
+		}
+
+		list( $hours, $minutes ) = array_map( 'intval', explode( ':', $time ) );
+		return ( $hours * 60 ) + $minutes;
 	}
 }

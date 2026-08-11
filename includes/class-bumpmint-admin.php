@@ -94,6 +94,7 @@ class BumpMint_Admin {
 				'selectImageTitle' => __( 'Select image', 'bumpmint-order-bump-for-woocommerce' ),
 				'useImageText'     => __( 'Use this image', 'bumpmint-order-bump-for-woocommerce' ),
 				'confirmDelete'    => __( 'Are you sure you want to delete this order bump?', 'bumpmint-order-bump-for-woocommerce' ),
+				'maxScheduleDates' => BumpMint_Rules::MAX_SCHEDULE_DATES,
 			)
 		);
 	}
@@ -135,6 +136,15 @@ class BumpMint_Admin {
 			}
 			if ( ! isset( $data['condition_category_ids'] ) ) {
 				$data['condition_category_ids'] = array();
+			}
+			if ( ! isset( $data['schedule_dates'] ) ) {
+				$data['schedule_dates'] = array();
+			}
+			if ( ! isset( $data['schedule_weekdays'] ) ) {
+				$data['schedule_weekdays'] = array();
+			}
+			if ( ! isset( $data['schedule_time_enabled'] ) ) {
+				$data['schedule_time_enabled'] = '0';
 			}
 
 			$result = BumpMint_Rules::save_rule( $rule_id, $data );
@@ -234,9 +244,10 @@ class BumpMint_Admin {
 	 * @param array $rule Rule data.
 	 */
 	private function render_rule_row( array $rule ) {
-		$products   = $this->get_products( $rule['bump_product_ids'] );
-		$edit_url   = admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&action=edit&rule=' . rawurlencode( $rule['id'] ) );
-		$delete_url = wp_nonce_url(
+		$products         = $this->get_products( $rule['bump_product_ids'] );
+		$schedule_summary = $this->get_schedule_summary( $rule );
+		$edit_url         = admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&action=edit&rule=' . rawurlencode( $rule['id'] ) );
+		$delete_url       = wp_nonce_url(
 			admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&action=delete&rule=' . rawurlencode( $rule['id'] ) ),
 			'bumpmint_delete_rule_' . $rule['id']
 		);
@@ -266,6 +277,9 @@ class BumpMint_Admin {
 			<td class="column-rule" data-colname="<?php esc_attr_e( 'Rule type', 'bumpmint-order-bump-for-woocommerce' ); ?>">
 				<?php echo esc_html( BumpMint_Conditions::get_label( $rule['condition_type'] ) ); ?>
 				<span class="bumpmint-row-detail"><?php echo esc_html( $this->get_condition_summary( $rule ) ); ?></span>
+				<?php if ( $schedule_summary ) : ?>
+					<span class="bumpmint-row-detail"><?php echo esc_html( $schedule_summary ); ?></span>
+				<?php endif; ?>
 			</td>
 			<td class="column-status" data-colname="<?php esc_attr_e( 'Status', 'bumpmint-order-bump-for-woocommerce' ); ?>">
 				<span class="bumpmint-status-dot" aria-hidden="true"></span>
@@ -300,6 +314,12 @@ class BumpMint_Admin {
 			'condition_match'       => 'any',
 			'condition_operator'    => 'greater_than',
 			'condition_value'       => '',
+			'schedule_type'         => BumpMint_Conditions::SCHEDULE_ALWAYS,
+			'schedule_dates'        => array(),
+			'schedule_weekdays'     => array(),
+			'schedule_time_enabled' => false,
+			'schedule_start_time'   => '',
+			'schedule_end_time'     => '',
 			'bump_product_ids'      => array(),
 			'hide_if_in_cart'       => false,
 			'position'              => BumpMint_Positions::BEFORE_PAYMENT,
@@ -324,6 +344,12 @@ class BumpMint_Admin {
 		if ( ! empty( $this->submitted_rule_data ) ) {
 			$rule = wp_parse_args( $this->submitted_rule_data, $rule );
 		}
+
+		$schedule_dates = array_values( array_filter( (array) $rule['schedule_dates'], 'is_scalar' ) );
+		if ( empty( $schedule_dates ) ) {
+			$schedule_dates = array( '' );
+		}
+		$timezone_name = wp_timezone()->getName();
 
 		$errors = get_settings_errors( 'bumpmint' );
 		?>
@@ -452,6 +478,112 @@ class BumpMint_Admin {
 									class="small-text"
 								/>
 								<p class="description"><?php esc_html_e( 'Cart subtotal excludes shipping, taxes, and products added by BumpMint. Quantity means total product units.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+					</table>
+				</div>
+
+				<div class="bumpmint-form-card">
+					<h2><?php esc_html_e( 'Availability schedule', 'bumpmint-order-bump-for-woocommerce' ); ?></h2>
+					<table class="form-table" role="presentation">
+						<tr>
+							<th scope="row"><label for="bumpmint-schedule-type"><?php esc_html_e( 'Available on', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
+							<td>
+								<select id="bumpmint-schedule-type" name="bumpmint_rule[schedule_type]">
+									<option value="always" <?php selected( $rule['schedule_type'], BumpMint_Conditions::SCHEDULE_ALWAYS ); ?>><?php esc_html_e( 'Every day', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+									<option value="dates" <?php selected( $rule['schedule_type'], BumpMint_Conditions::SCHEDULE_DATES ); ?>><?php esc_html_e( 'Specific dates', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+									<option value="weekdays" <?php selected( $rule['schedule_type'], BumpMint_Conditions::SCHEDULE_WEEKDAYS ); ?>><?php esc_html_e( 'Days of the week', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+								</select>
+								<p class="description"><?php esc_html_e( 'The display rule above must also match before the offer appears.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+						<tr class="bumpmint-schedule-dates-row">
+							<th scope="row"><?php esc_html_e( 'Specific dates', 'bumpmint-order-bump-for-woocommerce' ); ?></th>
+							<td>
+								<div class="bumpmint-schedule-dates">
+									<?php foreach ( $schedule_dates as $schedule_date ) : ?>
+										<div class="bumpmint-schedule-date-row">
+											<input type="date" name="bumpmint_rule[schedule_dates][]" value="<?php echo esc_attr( $schedule_date ); ?>" aria-label="<?php esc_attr_e( 'Specific date', 'bumpmint-order-bump-for-woocommerce' ); ?>" />
+											<button type="button" class="button-link-delete bumpmint-remove-schedule-date"><?php esc_html_e( 'Remove', 'bumpmint-order-bump-for-woocommerce' ); ?></button>
+										</div>
+									<?php endforeach; ?>
+								</div>
+								<button type="button" class="button bumpmint-add-schedule-date"><?php esc_html_e( 'Add date', 'bumpmint-order-bump-for-woocommerce' ); ?></button>
+								<p class="description">
+									<?php
+									echo esc_html(
+										sprintf(
+											/* translators: %d: maximum number of specific dates. */
+											__( 'Choose one or more calendar dates. You can add up to %d dates.', 'bumpmint-order-bump-for-woocommerce' ),
+											BumpMint_Rules::MAX_SCHEDULE_DATES
+										)
+									);
+									?>
+								</p>
+							</td>
+						</tr>
+						<tr class="bumpmint-schedule-weekdays-row">
+							<th scope="row"><?php esc_html_e( 'Days of the week', 'bumpmint-order-bump-for-woocommerce' ); ?></th>
+							<td>
+								<fieldset class="bumpmint-weekday-options">
+									<?php foreach ( $this->get_weekday_labels() as $weekday_number => $weekday_label ) : ?>
+										<label>
+											<input
+												type="checkbox"
+												name="bumpmint_rule[schedule_weekdays][]"
+												value="<?php echo esc_attr( $weekday_number ); ?>"
+												<?php checked( in_array( $weekday_number, array_map( 'absint', (array) $rule['schedule_weekdays'] ), true ) ); ?>
+											/>
+											<?php echo esc_html( $weekday_label ); ?>
+										</label>
+									<?php endforeach; ?>
+								</fieldset>
+								<p class="description"><?php esc_html_e( 'The offer repeats every week on the selected days.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+						<tr>
+							<th scope="row"><label for="bumpmint-schedule-time-enabled"><?php esc_html_e( 'Hours', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
+							<td>
+								<label>
+									<input
+										type="checkbox"
+										id="bumpmint-schedule-time-enabled"
+										name="bumpmint_rule[schedule_time_enabled]"
+										value="1"
+										<?php checked( ! empty( $rule['schedule_time_enabled'] ) ); ?>
+									/>
+									<?php esc_html_e( 'Limit availability to a time range', 'bumpmint-order-bump-for-woocommerce' ); ?>
+								</label>
+								<p class="description">
+									<?php
+									/* translators: %s: WordPress site timezone. */
+									echo esc_html( sprintf( __( 'Times use the site timezone: %s.', 'bumpmint-order-bump-for-woocommerce' ), $timezone_name ) );
+									?>
+								</p>
+							</td>
+						</tr>
+						<tr class="bumpmint-schedule-time-row">
+							<th scope="row"><?php esc_html_e( 'Time range', 'bumpmint-order-bump-for-woocommerce' ); ?></th>
+							<td>
+								<div class="bumpmint-inline-fields">
+									<label for="bumpmint-schedule-start-time"><?php esc_html_e( 'From', 'bumpmint-order-bump-for-woocommerce' ); ?></label>
+									<input
+										type="time"
+										id="bumpmint-schedule-start-time"
+										name="bumpmint_rule[schedule_start_time]"
+										value="<?php echo esc_attr( $rule['schedule_start_time'] ); ?>"
+										step="60"
+									/>
+									<label for="bumpmint-schedule-end-time"><?php esc_html_e( 'Until', 'bumpmint-order-bump-for-woocommerce' ); ?></label>
+									<input
+										type="time"
+										id="bumpmint-schedule-end-time"
+										name="bumpmint_rule[schedule_end_time]"
+										value="<?php echo esc_attr( $rule['schedule_end_time'] ); ?>"
+										step="60"
+									/>
+								</div>
+								<p class="description"><?php esc_html_e( 'The start time is included and the end time is excluded. If the end is earlier than the start, availability continues into the next day.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
 							</td>
 						</tr>
 					</table>
@@ -784,6 +916,99 @@ class BumpMint_Admin {
 		}
 
 		return $operator . ' ' . absint( $rule['condition_value'] );
+	}
+
+	/**
+	 * Returns translated weekday labels keyed by ISO-8601 weekday number.
+	 *
+	 * @return array
+	 */
+	private function get_weekday_labels() {
+		return array(
+			1 => __( 'Monday', 'bumpmint-order-bump-for-woocommerce' ),
+			2 => __( 'Tuesday', 'bumpmint-order-bump-for-woocommerce' ),
+			3 => __( 'Wednesday', 'bumpmint-order-bump-for-woocommerce' ),
+			4 => __( 'Thursday', 'bumpmint-order-bump-for-woocommerce' ),
+			5 => __( 'Friday', 'bumpmint-order-bump-for-woocommerce' ),
+			6 => __( 'Saturday', 'bumpmint-order-bump-for-woocommerce' ),
+			7 => __( 'Sunday', 'bumpmint-order-bump-for-woocommerce' ),
+		);
+	}
+
+	/**
+	 * Returns a concise localized availability summary for the rules table.
+	 *
+	 * @param array $rule Rule data.
+	 * @return string
+	 */
+	private function get_schedule_summary( array $rule ) {
+		$schedule_type = isset( $rule['schedule_type'] ) ? $rule['schedule_type'] : BumpMint_Conditions::SCHEDULE_ALWAYS;
+		$parts         = array();
+
+		if ( BumpMint_Conditions::SCHEDULE_DATES === $schedule_type ) {
+			$dates       = array_values( array_filter( (array) $rule['schedule_dates'], 'is_scalar' ) );
+			$date_labels = array();
+			foreach ( array_slice( $dates, 0, 3 ) as $date ) {
+				$datetime = DateTimeImmutable::createFromFormat( '!Y-m-d', (string) $date, wp_timezone() );
+				if ( $datetime && $datetime->format( 'Y-m-d' ) === $date ) {
+					$date_labels[] = wp_date( get_option( 'date_format' ), $datetime->getTimestamp(), wp_timezone() );
+				}
+			}
+
+			if ( ! empty( $date_labels ) ) {
+				$date_summary = implode( ', ', $date_labels );
+				if ( count( $dates ) > count( $date_labels ) ) {
+					$date_summary .= ' ' . sprintf(
+						/* translators: %d: number of additional specific dates. */
+						__( '+%d more', 'bumpmint-order-bump-for-woocommerce' ),
+						count( $dates ) - count( $date_labels )
+					);
+				}
+				/* translators: %s: localized list of specific dates. */
+				$parts[] = sprintf( __( 'Dates: %s', 'bumpmint-order-bump-for-woocommerce' ), $date_summary );
+			}
+		} elseif ( BumpMint_Conditions::SCHEDULE_WEEKDAYS === $schedule_type ) {
+			$weekday_labels   = $this->get_weekday_labels();
+			$selected_labels = array();
+			foreach ( array_map( 'absint', (array) $rule['schedule_weekdays'] ) as $weekday ) {
+				if ( isset( $weekday_labels[ $weekday ] ) ) {
+					$selected_labels[] = $weekday_labels[ $weekday ];
+				}
+			}
+
+			if ( ! empty( $selected_labels ) ) {
+				/* translators: %s: localized list of weekdays. */
+				$parts[] = sprintf( __( 'Days: %s', 'bumpmint-order-bump-for-woocommerce' ), implode( ', ', $selected_labels ) );
+			}
+		} elseif ( ! empty( $rule['schedule_time_enabled'] ) ) {
+			$parts[] = __( 'Every day', 'bumpmint-order-bump-for-woocommerce' );
+		}
+
+		if ( ! empty( $rule['schedule_time_enabled'] ) ) {
+			$start_time = $this->format_schedule_time( isset( $rule['schedule_start_time'] ) ? $rule['schedule_start_time'] : '' );
+			$end_time   = $this->format_schedule_time( isset( $rule['schedule_end_time'] ) ? $rule['schedule_end_time'] : '' );
+			if ( $start_time && $end_time ) {
+				/* translators: 1: schedule start time, 2: schedule end time. */
+				$parts[] = sprintf( __( 'Time: %1$s–%2$s', 'bumpmint-order-bump-for-woocommerce' ), $start_time, $end_time );
+			}
+		}
+
+		return implode( ' · ', $parts );
+	}
+
+	/**
+	 * Formats one stored 24-hour time using the site's display setting.
+	 *
+	 * @param string $time Time in H:i format.
+	 * @return string
+	 */
+	private function format_schedule_time( $time ) {
+		$datetime = DateTimeImmutable::createFromFormat( '!H:i', (string) $time, wp_timezone() );
+		if ( ! $datetime || $datetime->format( 'H:i' ) !== $time ) {
+			return '';
+		}
+
+		return wp_date( get_option( 'time_format' ), $datetime->getTimestamp(), wp_timezone() );
 	}
 
 	/**

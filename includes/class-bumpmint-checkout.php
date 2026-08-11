@@ -826,6 +826,10 @@ class BumpMint_Checkout {
 	 * @return string
 	 */
 	private function get_condition_requirement_message( array $rule ) {
+		if ( ! BumpMint_Conditions::matches_schedule( $rule ) ) {
+			return __( 'This offer is currently outside its scheduled date or time.', 'bumpmint-order-bump-for-woocommerce' );
+		}
+
 		$type     = isset( $rule['condition_type'] ) ? $rule['condition_type'] : '';
 		$operator = isset( $rule['condition_operator'] ) ? $rule['condition_operator'] : 'greater_than';
 

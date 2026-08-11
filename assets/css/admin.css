@@ -177,6 +177,34 @@
 	flex-basis: 100%;
 }
 
+.bumpmint-schedule-dates {
+	display: flex;
+	max-width: 430px;
+	margin-bottom: 8px;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.bumpmint-schedule-date-row,
+.bumpmint-weekday-options {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.bumpmint-schedule-date-row input[type="date"] {
+	min-width: 180px;
+}
+
+.bumpmint-weekday-options {
+	flex-wrap: wrap;
+	gap: 8px 16px;
+}
+
+.bumpmint-weekday-options label {
+	white-space: nowrap;
+}
+
 .bumpmint-discount-fields {
 	margin-top: 12px;
 }

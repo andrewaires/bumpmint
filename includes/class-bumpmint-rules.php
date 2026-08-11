@@ -14,8 +14,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class BumpMint_Rules {
 
-	const NAME_MAX_LENGTH  = 120;
-	const BADGE_MAX_LENGTH = 60;
+	const NAME_MAX_LENGTH    = 120;
+	const BADGE_MAX_LENGTH   = 60;
+	const MAX_SCHEDULE_DATES = 366;
 
 	/**
 	 * Returns all saved rules and migrates legacy data when necessary.
@@ -189,6 +190,125 @@ class BumpMint_Rules {
 			$condition_match            = 'any';
 		}
 
+		$schedule_type = isset( $data['schedule_type'] )
+			? sanitize_key( $data['schedule_type'] )
+			: BumpMint_Conditions::SCHEDULE_ALWAYS;
+		if ( ! in_array( $schedule_type, array( BumpMint_Conditions::SCHEDULE_ALWAYS, BumpMint_Conditions::SCHEDULE_DATES, BumpMint_Conditions::SCHEDULE_WEEKDAYS ), true ) ) {
+			return new WP_Error(
+				'bumpmint_invalid_schedule_type',
+				__( 'Select a valid availability schedule.', 'bumpmint-order-bump-for-woocommerce' )
+			);
+		}
+
+		$schedule_dates_raw = isset( $data['schedule_dates'] ) ? (array) $data['schedule_dates'] : array();
+		if ( count( $schedule_dates_raw ) > self::MAX_SCHEDULE_DATES ) {
+			return new WP_Error(
+				'bumpmint_too_many_schedule_dates',
+				sprintf(
+					/* translators: %d: maximum number of specific dates. */
+					__( 'Select no more than %d specific dates.', 'bumpmint-order-bump-for-woocommerce' ),
+					self::MAX_SCHEDULE_DATES
+				)
+			);
+		}
+
+		$schedule_dates = array();
+		foreach ( $schedule_dates_raw as $schedule_date_raw ) {
+			if ( ! is_scalar( $schedule_date_raw ) ) {
+				return new WP_Error(
+					'bumpmint_invalid_schedule_date',
+					__( 'Select valid specific dates.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+
+			$schedule_date_raw = trim( sanitize_text_field( (string) $schedule_date_raw ) );
+			if ( '' === $schedule_date_raw ) {
+				continue;
+			}
+
+			$schedule_date = self::sanitize_schedule_date( $schedule_date_raw );
+			if ( '' === $schedule_date ) {
+				return new WP_Error(
+					'bumpmint_invalid_schedule_date',
+					__( 'Select valid specific dates.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+			$schedule_dates[] = $schedule_date;
+		}
+		$schedule_dates = array_values( array_unique( $schedule_dates ) );
+		sort( $schedule_dates, SORT_STRING );
+
+		$schedule_weekdays_raw = isset( $data['schedule_weekdays'] ) ? (array) $data['schedule_weekdays'] : array();
+		$schedule_weekdays     = array();
+		foreach ( $schedule_weekdays_raw as $schedule_weekday_raw ) {
+			if ( ! is_scalar( $schedule_weekday_raw ) ) {
+				return new WP_Error(
+					'bumpmint_invalid_schedule_weekday',
+					__( 'Select valid days of the week.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+
+			$schedule_weekday_raw = trim( (string) $schedule_weekday_raw );
+			if ( '' === $schedule_weekday_raw ) {
+				continue;
+			}
+
+			if ( ! preg_match( '/^[1-7]$/', $schedule_weekday_raw ) ) {
+				return new WP_Error(
+					'bumpmint_invalid_schedule_weekday',
+					__( 'Select valid days of the week.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+			$schedule_weekdays[] = (int) $schedule_weekday_raw;
+		}
+		$schedule_weekdays = array_values( array_unique( $schedule_weekdays ) );
+		sort( $schedule_weekdays, SORT_NUMERIC );
+
+		if ( BumpMint_Conditions::SCHEDULE_DATES === $schedule_type ) {
+			if ( empty( $schedule_dates ) ) {
+				return new WP_Error(
+					'bumpmint_schedule_date_required',
+					__( 'Select at least one specific date.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+			$schedule_weekdays = array();
+		} elseif ( BumpMint_Conditions::SCHEDULE_WEEKDAYS === $schedule_type ) {
+			if ( empty( $schedule_weekdays ) ) {
+				return new WP_Error(
+					'bumpmint_schedule_weekday_required',
+					__( 'Select at least one day of the week.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+			$schedule_dates = array();
+		} else {
+			$schedule_dates    = array();
+			$schedule_weekdays = array();
+		}
+
+		$schedule_time_enabled = isset( $data['schedule_time_enabled'] )
+			&& is_scalar( $data['schedule_time_enabled'] )
+			&& '1' === (string) $data['schedule_time_enabled'];
+		$schedule_start_time    = isset( $data['schedule_start_time'] ) && is_scalar( $data['schedule_start_time'] ) ? sanitize_text_field( (string) $data['schedule_start_time'] ) : '';
+		$schedule_end_time      = isset( $data['schedule_end_time'] ) && is_scalar( $data['schedule_end_time'] ) ? sanitize_text_field( (string) $data['schedule_end_time'] ) : '';
+		if ( $schedule_time_enabled ) {
+			if ( ! self::is_valid_schedule_time( $schedule_start_time ) || ! self::is_valid_schedule_time( $schedule_end_time ) ) {
+				return new WP_Error(
+					'bumpmint_invalid_schedule_time',
+					__( 'Enter valid start and end times.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+
+			if ( $schedule_start_time === $schedule_end_time ) {
+				return new WP_Error(
+					'bumpmint_equal_schedule_times',
+					__( 'Start and end times must be different.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+		} else {
+			$schedule_start_time = '';
+			$schedule_end_time   = '';
+		}
+
 		$bump_product_ids = isset( $data['bump_product_ids'] )
 			? self::sanitize_product_ids( $data['bump_product_ids'] )
 			: array();
@@ -293,6 +413,12 @@ class BumpMint_Rules {
 			'condition_match'       => $condition_match,
 			'condition_operator'    => $condition_operator,
 			'condition_value'       => $condition_value,
+			'schedule_type'         => $schedule_type,
+			'schedule_dates'        => $schedule_dates,
+			'schedule_weekdays'     => $schedule_weekdays,
+			'schedule_time_enabled' => $schedule_time_enabled,
+			'schedule_start_time'   => $schedule_start_time,
+			'schedule_end_time'     => $schedule_end_time,
 			'bump_product_ids'      => $bump_product_ids,
 			'hide_if_in_cart'       => $hide_if_in_cart,
 			'position'              => $position,
@@ -476,6 +602,31 @@ class BumpMint_Rules {
 		$condition_category_ids     = isset( $rule['condition_category_ids'] )
 			? self::sanitize_category_ids( $rule['condition_category_ids'] )
 			: array();
+		$schedule_type = isset( $rule['schedule_type'] ) ? sanitize_key( $rule['schedule_type'] ) : BumpMint_Conditions::SCHEDULE_ALWAYS;
+		if ( ! in_array( $schedule_type, array( BumpMint_Conditions::SCHEDULE_ALWAYS, BumpMint_Conditions::SCHEDULE_DATES, BumpMint_Conditions::SCHEDULE_WEEKDAYS ), true ) ) {
+			$schedule_type = BumpMint_Conditions::SCHEDULE_ALWAYS;
+		}
+		$schedule_dates    = isset( $rule['schedule_dates'] ) ? self::sanitize_schedule_dates( $rule['schedule_dates'] ) : array();
+		$schedule_weekdays = isset( $rule['schedule_weekdays'] ) ? self::sanitize_schedule_weekdays( $rule['schedule_weekdays'] ) : array();
+		if ( BumpMint_Conditions::SCHEDULE_DATES === $schedule_type ) {
+			$schedule_weekdays = array();
+		} elseif ( BumpMint_Conditions::SCHEDULE_WEEKDAYS === $schedule_type ) {
+			$schedule_dates = array();
+		} else {
+			$schedule_dates    = array();
+			$schedule_weekdays = array();
+		}
+
+		$schedule_start_time = isset( $rule['schedule_start_time'] ) && is_scalar( $rule['schedule_start_time'] ) ? sanitize_text_field( (string) $rule['schedule_start_time'] ) : '';
+		$schedule_end_time   = isset( $rule['schedule_end_time'] ) && is_scalar( $rule['schedule_end_time'] ) ? sanitize_text_field( (string) $rule['schedule_end_time'] ) : '';
+		$schedule_time_enabled = ! empty( $rule['schedule_time_enabled'] )
+			&& self::is_valid_schedule_time( $schedule_start_time )
+			&& self::is_valid_schedule_time( $schedule_end_time )
+			&& $schedule_start_time !== $schedule_end_time;
+		if ( ! $schedule_time_enabled ) {
+			$schedule_start_time = '';
+			$schedule_end_time   = '';
+		}
 
 		$fallback_name = '';
 		if ( ! empty( $rule['name'] ) ) {
@@ -503,6 +654,12 @@ class BumpMint_Rules {
 			'condition_match'       => 'any',
 			'condition_operator'    => 'greater_than',
 			'condition_value'       => '0',
+			'schedule_type'         => $schedule_type,
+			'schedule_dates'        => $schedule_dates,
+			'schedule_weekdays'     => $schedule_weekdays,
+			'schedule_time_enabled' => $schedule_time_enabled,
+			'schedule_start_time'   => $schedule_start_time,
+			'schedule_end_time'     => $schedule_end_time,
 			'bump_product_ids'      => $bump_product_ids,
 			'hide_if_in_cart'       => false,
 			'position'              => BumpMint_Positions::BEFORE_PAYMENT,
@@ -524,6 +681,12 @@ class BumpMint_Rules {
 			&& $condition_category_enabled
 			&& ! empty( $condition_category_ids );
 		$normalized['condition_category_ids'] = $normalized['condition_category_enabled'] ? $condition_category_ids : array();
+		$normalized['schedule_type']         = $schedule_type;
+		$normalized['schedule_dates']        = $schedule_dates;
+		$normalized['schedule_weekdays']     = $schedule_weekdays;
+		$normalized['schedule_time_enabled'] = $schedule_time_enabled;
+		$normalized['schedule_start_time']   = $schedule_start_time;
+		$normalized['schedule_end_time']     = $schedule_end_time;
 		$normalized['bump_product_ids']      = $bump_product_ids;
 		$normalized['hide_if_in_cart']       = ! empty( $normalized['hide_if_in_cart'] );
 		$normalized['max_quantity']          = max( 1, absint( $normalized['max_quantity'] ) );
@@ -564,9 +727,13 @@ class BumpMint_Rules {
 			? self::sanitize_category_ids( $rule['condition_category_ids'] )
 			: array();
 		$bump_product_ids      = $rule['bump_product_ids'];
+		$schedule_dates        = isset( $rule['schedule_dates'] ) ? self::sanitize_schedule_dates( $rule['schedule_dates'] ) : array();
+		$schedule_weekdays     = isset( $rule['schedule_weekdays'] ) ? self::sanitize_schedule_weekdays( $rule['schedule_weekdays'] ) : array();
 		sort( $condition_product_ids, SORT_NUMERIC );
 		sort( $condition_category_ids, SORT_NUMERIC );
 		sort( $bump_product_ids, SORT_NUMERIC );
+		sort( $schedule_dates, SORT_STRING );
+		sort( $schedule_weekdays, SORT_NUMERIC );
 
 		return md5(
 			wp_json_encode(
@@ -578,6 +745,12 @@ class BumpMint_Rules {
 					$rule['condition_match'],
 					$rule['condition_operator'],
 					$rule['condition_value'],
+					isset( $rule['schedule_type'] ) ? $rule['schedule_type'] : BumpMint_Conditions::SCHEDULE_ALWAYS,
+					$schedule_dates,
+					$schedule_weekdays,
+					! empty( $rule['schedule_time_enabled'] ),
+					isset( $rule['schedule_start_time'] ) ? $rule['schedule_start_time'] : '',
+					isset( $rule['schedule_end_time'] ) ? $rule['schedule_end_time'] : '',
 					$bump_product_ids,
 					$rule['position'],
 				)
@@ -611,6 +784,83 @@ class BumpMint_Rules {
 		$category_ids = array_filter( $category_ids );
 
 		return array_values( array_unique( $category_ids ) );
+	}
+
+	/**
+	 * Sanitizes and sorts a list of specific local calendar dates.
+	 *
+	 * @param mixed $dates Dates in Y-m-d format.
+	 * @return array
+	 */
+	private static function sanitize_schedule_dates( $dates ) {
+		$dates     = is_array( $dates ) ? $dates : array( $dates );
+		$sanitized = array();
+
+		foreach ( array_slice( $dates, 0, self::MAX_SCHEDULE_DATES ) as $date ) {
+			if ( ! is_scalar( $date ) ) {
+				continue;
+			}
+			$date = self::sanitize_schedule_date( $date );
+			if ( '' !== $date ) {
+				$sanitized[] = $date;
+			}
+		}
+
+		$sanitized = array_values( array_unique( $sanitized ) );
+		sort( $sanitized, SORT_STRING );
+		return $sanitized;
+	}
+
+	/**
+	 * Validates one local calendar date without applying a timezone offset.
+	 *
+	 * @param mixed $date Date in Y-m-d format.
+	 * @return string
+	 */
+	private static function sanitize_schedule_date( $date ) {
+		$date = is_scalar( $date ) ? trim( sanitize_text_field( (string) $date ) ) : '';
+		if ( ! preg_match( '/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/', $date ) ) {
+			return '';
+		}
+
+		$datetime = DateTimeImmutable::createFromFormat( '!Y-m-d', $date, wp_timezone() );
+		$errors   = DateTimeImmutable::getLastErrors();
+		if (
+			! $datetime
+			|| ( is_array( $errors ) && ( $errors['warning_count'] || $errors['error_count'] ) )
+			|| $datetime->format( 'Y-m-d' ) !== $date
+		) {
+			return '';
+		}
+
+		return $date;
+	}
+
+	/**
+	 * Sanitizes and sorts ISO-8601 weekday numbers (Monday 1 through Sunday 7).
+	 *
+	 * @param mixed $weekdays Weekday number or list.
+	 * @return array
+	 */
+	private static function sanitize_schedule_weekdays( $weekdays ) {
+		$weekdays = is_array( $weekdays ) ? $weekdays : array( $weekdays );
+		$weekdays = array_map( 'absint', $weekdays );
+		$weekdays = array_values( array_unique( array_filter( $weekdays, function ( $weekday ) {
+			return $weekday >= 1 && $weekday <= 7;
+		} ) ) );
+		sort( $weekdays, SORT_NUMERIC );
+
+		return $weekdays;
+	}
+
+	/**
+	 * Validates a strict 24-hour time string.
+	 *
+	 * @param mixed $time Time in H:i format.
+	 * @return bool
+	 */
+	private static function is_valid_schedule_time( $time ) {
+		return is_string( $time ) && (bool) preg_match( '/^(?:[01][0-9]|2[0-3]):[0-5][0-9]$/', $time );
 	}
 
 	/**

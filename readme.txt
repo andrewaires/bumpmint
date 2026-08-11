@@ -6,7 +6,7 @@ Tested up to: 7.0
 Requires PHP: 7.4
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,6 +25,7 @@ Create multiple order bumps, target each offer with flexible cart rules, include
 * **Increase average order value** — Offer relevant add-ons before the customer completes the order.
 * **Create a frictionless experience** — Customers accept an offer with one click, without leaving checkout.
 * **Target offers more precisely** — Display each bump when any or all selected products are in the cart, when a product belongs to a selected category, or according to cart subtotal or item quantity.
+* **Schedule offer availability** — Use specific calendar dates, recurring weekdays, and optional time ranges in the WordPress site timezone.
 * **Avoid redundant offers** — Optionally hide each offered product when that exact product or variation is already in the cart.
 * **Protect promotional pricing** — Discounts and final prices are calculated and enforced on the server.
 * **Limit discounted quantities** — Set how many units of each offered product can receive the order bump discount; the default is one.
@@ -61,6 +62,10 @@ Choose when an order bump should appear:
 Products added by BumpMint are excluded from subtotal and quantity conditions. This prevents an offer from activating or deactivating itself.
 
 Product and category triggers use OR logic and can also be configured as category-only rules. Selecting a parent category includes products in its child categories, and variations use their parent product categories.
+
+= Schedule Offer Availability =
+
+Keep an offer available every day, limit it to one or more specific calendar dates, or repeat it on selected weekdays. An optional time range uses the WordPress site timezone and can continue past midnight. The display rule and availability schedule must both match before the order bump appears.
 
 = Choose the Best Checkout Position =
 
@@ -158,6 +163,10 @@ Yes. A product rule can match any selected trigger product or require all select
 
 Yes. Enable category triggers and select one or more product categories. A product in any selected category can trigger the offer, and category triggers can be used without selecting a trigger product. Product and category triggers are combined with OR logic. Selecting a parent category also includes its child categories, and variations use their parent product categories.
 
+= Can I schedule when an order bump is available? =
+
+Yes. Each order bump can be available every day, on selected calendar dates, or on selected weekdays. You can also limit it to a time range. Scheduling uses the timezone configured in WordPress, and ranges such as 22:00–02:00 continue into the next day.
+
 = Can I limit how many discounted units a customer can buy? =
 
 Yes. Each order bump has a maximum discounted quantity for every offered product. The default is one unit, and the limit is enforced on the server when the cart is updated and totals are calculated.
@@ -219,6 +228,11 @@ Development is hosted on [GitHub](https://github.com/andrewaires/bumpmint). Use 
 5. Customize the offered products, secure discount, promotional banner, title, description, placeholders, and image.
 
 == Changelog ==
+
+= 1.4.0 - 2026-08-11 =
+* Added availability scheduling for every day, selected calendar dates, or recurring weekdays.
+* Added optional time ranges based on the WordPress site timezone, including ranges that continue past midnight.
+* Enforced schedule eligibility on the server across classic checkout and Checkout Blocks, including automatic removal of selected offers that are no longer scheduled.
 
 = 1.3.0 - 2026-08-10 =
 * Added product category triggers, including category-only rules and product/category OR matching.
