@@ -3,7 +3,7 @@
  * Plugin Name:       BumpMint - Order Bump for WooCommerce
  * Plugin URI:        https://github.com/andrewaires/bumpmint
  * Description:       Create targeted WooCommerce order bumps with flexible display rules, secure server-side discounts, and multiple checkout positions.
- * Version:           1.4.0
+ * Version:           1.5.0
  * Requires at least: 6.5
  * Requires PHP:      7.4
  * Author:            Andrew Aires
@@ -24,13 +24,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants.
-define( 'BUMPMINT_VERSION', '1.4.0' );
+define( 'BUMPMINT_VERSION', '1.5.0' );
 define( 'BUMPMINT_PLUGIN_SLUG', 'bumpmint-order-bump-for-woocommerce' );
 define( 'BUMPMINT_PLUGIN_FILE', __FILE__ );
 define( 'BUMPMINT_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BUMPMINT_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'BUMPMINT_OPTION_KEY', 'bumpmint_rules' );
-define( 'BUMPMINT_STORAGE_VERSION', 1 );
+define( 'BUMPMINT_STORAGE_VERSION', 2 );
 define( 'BUMPMINT_STORAGE_VERSION_KEY', 'bumpmint_storage_version' );
 define( 'BUMPMINT_SUPPORT_URL', 'https://wordpress.org/support/plugin/bumpmint-order-bump-for-woocommerce/' );
 define( 'BUMPMINT_REVIEW_URL', 'https://wordpress.org/support/plugin/bumpmint-order-bump-for-woocommerce/reviews/#new-post' );
@@ -66,8 +66,8 @@ final class BumpMint_Plugin {
 	 * Private constructor: registers initialization hooks.
 	 */
 	private function __construct() {
-		add_action( 'init', array( $this, 'init' ) );
-		add_action( 'admin_init', 'bumpmint_maybe_upgrade_storage' );
+		add_action( 'init', 'bumpmint_maybe_upgrade_storage', 5 );
+		add_action( 'init', array( $this, 'init' ), 10 );
 		add_action( 'before_woocommerce_init', array( $this, 'declare_hpos_compatibility' ) );
 		add_action( 'admin_notices', array( $this, 'nonstandard_installation_notice' ) );
 		add_action( 'network_admin_notices', array( $this, 'nonstandard_installation_notice' ) );
@@ -89,11 +89,16 @@ final class BumpMint_Plugin {
 		require_once BUMPMINT_PLUGIN_DIR . 'includes/class-bumpmint-conditions.php';
 		require_once BUMPMINT_PLUGIN_DIR . 'includes/class-bumpmint-positions.php';
 		require_once BUMPMINT_PLUGIN_DIR . 'includes/class-bumpmint-rules.php';
+		require_once BUMPMINT_PLUGIN_DIR . 'includes/class-bumpmint-analytics.php';
+		require_once BUMPMINT_PLUGIN_DIR . 'includes/class-bumpmint-analytics-reports.php';
+		require_once BUMPMINT_PLUGIN_DIR . 'includes/class-bumpmint-analytics-admin.php';
 		require_once BUMPMINT_PLUGIN_DIR . 'includes/class-bumpmint-admin.php';
 		require_once BUMPMINT_PLUGIN_DIR . 'includes/class-bumpmint-checkout.php';
 
+		$analytics = new BumpMint_Analytics();
 		new BumpMint_Admin();
-		$checkout = new BumpMint_Checkout();
+		new BumpMint_Analytics_Admin( $analytics );
+		$checkout = new BumpMint_Checkout( $analytics );
 
 		if ( interface_exists( '\Automattic\WooCommerce\Blocks\Integrations\IntegrationInterface' ) ) {
 			require_once BUMPMINT_PLUGIN_DIR . 'includes/class-bumpmint-checkout-block.php';
@@ -229,20 +234,34 @@ function bumpmint_maybe_upgrade_storage() {
 		return;
 	}
 
-	$autoload_disabled = false;
-	if ( false === get_option( BUMPMINT_OPTION_KEY, false ) ) {
-		$autoload_disabled = add_option( BUMPMINT_OPTION_KEY, array(), '', false );
+	if ( $installed_version < 1 ) {
+		$autoload_disabled = false;
+		if ( false === get_option( BUMPMINT_OPTION_KEY, false ) ) {
+			$autoload_disabled = add_option( BUMPMINT_OPTION_KEY, array(), '', false );
+		}
+
+		if ( ! $autoload_disabled ) {
+			wp_set_option_autoload( BUMPMINT_OPTION_KEY, false );
+			$autoload_disabled = ! array_key_exists( BUMPMINT_OPTION_KEY, wp_load_alloptions() );
+		}
+
+		if ( ! $autoload_disabled ) {
+			return;
+		}
+
+		$installed_version = 1;
 	}
 
-	if ( ! $autoload_disabled ) {
-		wp_set_option_autoload( BUMPMINT_OPTION_KEY, false );
-		$autoload_disabled = ! array_key_exists( BUMPMINT_OPTION_KEY, wp_load_alloptions() );
+	if ( $installed_version < 2 ) {
+		require_once BUMPMINT_PLUGIN_DIR . 'includes/class-bumpmint-analytics.php';
+		if ( ! BumpMint_Analytics::install_schema() ) {
+			return;
+		}
+		$installed_version = 2;
 	}
 
-	if ( $autoload_disabled ) {
-		// This tiny marker avoids an extra database query on every admin request.
-		update_option( BUMPMINT_STORAGE_VERSION_KEY, BUMPMINT_STORAGE_VERSION, true );
-	}
+	// This tiny marker avoids repeated schema checks on normal requests.
+	update_option( BUMPMINT_STORAGE_VERSION_KEY, $installed_version, true );
 }
 
 /**

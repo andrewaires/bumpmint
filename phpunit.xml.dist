@@ -13,6 +13,7 @@
 			<file>tests/test-storage.php</file>
 			<file>tests/test-category-triggers.php</file>
 			<file>tests/test-scheduling.php</file>
+			<file>tests/test-analytics.php</file>
 		</testsuite>
 	</testsuites>
 </phpunit>

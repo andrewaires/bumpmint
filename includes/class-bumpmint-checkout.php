@@ -19,6 +19,13 @@ class BumpMint_Checkout {
 	const SESSION_PENDING_REMOVALS = 'bumpmint_pending_offer_removals';
 
 	/**
+	 * Anonymous Analytics service, when tracking is available.
+	 *
+	 * @var BumpMint_Analytics|null
+	 */
+	private $analytics = null;
+
+	/**
 	 * Prevents recursive price calculations.
 	 *
 	 * @var bool
@@ -49,7 +56,8 @@ class BumpMint_Checkout {
 	/**
 	 * Registers checkout, AJAX, and pricing hooks.
 	 */
-	public function __construct() {
+	public function __construct( $analytics = null ) {
+		$this->analytics = is_a( $analytics, 'BumpMint_Analytics' ) ? $analytics : null;
 		$this->register_position_hooks();
 
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
@@ -111,13 +119,16 @@ class BumpMint_Checkout {
 			true
 		);
 
+		$analytics_config = BumpMint_Analytics::get_frontend_config();
 		wp_localize_script(
 			'bumpmint-frontend',
 			'bumpmintFrontend',
 			array(
-				'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
-				'nonce'        => wp_create_nonce( self::NONCE_ACTION ),
-				'genericError' => __( 'The offer could not be updated. Please try again.', 'bumpmint-order-bump-for-woocommerce' ),
+				'ajaxUrl'        => admin_url( 'admin-ajax.php' ),
+				'nonce'          => wp_create_nonce( self::NONCE_ACTION ),
+				'genericError'   => __( 'The offer could not be updated. Please try again.', 'bumpmint-order-bump-for-woocommerce' ),
+				'analyticsAction' => $analytics_config['action'],
+				'analyticsNonce'  => $analytics_config['nonce'],
 			)
 		);
 	}
@@ -266,7 +277,10 @@ class BumpMint_Checkout {
 		$input_id   = 'bumpmint-bump-' . sanitize_html_class( $rule_id . '-' . $product_id );
 		$image_id   = ! empty( $rule['image_id'] ) ? absint( $rule['image_id'] ) : 0;
 		?>
-		<div id="<?php echo esc_attr( $input_id ); ?>-card" class="bumpmint-bump-box">
+		<div
+			id="<?php echo esc_attr( $input_id ); ?>-card"
+			class="bumpmint-bump-box"
+			data-bumpmint-rule-id="<?php echo esc_attr( $rule_id ); ?>">
 			<div class="bumpmint-badge"><?php echo esc_html( $view_data['badge'] ); ?></div>
 			<div class="bumpmint-bump-content">
 				<label for="<?php echo esc_attr( $input_id ); ?>" class="bumpmint-bump-label">
@@ -421,6 +435,9 @@ class BumpMint_Checkout {
 		}
 
 		if ( $existing_key ) {
+			if ( $this->analytics ) {
+				$this->analytics->record_offer_view( $rule, $cart );
+			}
 			return array( 'cart_hash' => $cart->get_cart_hash() );
 		}
 
@@ -433,6 +450,14 @@ class BumpMint_Checkout {
 			'bumpmint_rule_id' => $rule['id'],
 			'bumpmint_source'  => 'order_bump',
 		);
+		if ( $this->analytics ) {
+			$attribution = $this->analytics->record_offer_view( $rule, $cart );
+			if ( ! empty( $attribution ) ) {
+				$cart_item_data['bumpmint_analytics_session_hash'] = $attribution['session_hash'];
+				$cart_item_data['bumpmint_analytics_tracking_id']  = $attribution['tracking_id'];
+				$cart_item_data['bumpmint_analytics_view_id']      = $attribution['view_id'];
+			}
+		}
 		$notices_before = wc_get_notices();
 
 		if ( $product->is_type( 'variation' ) ) {
@@ -930,6 +955,9 @@ class BumpMint_Checkout {
 		if ( $rule ) {
 			$item->add_meta_data( '_bumpmint_rule_id', $rule['id'], true );
 			$item->add_meta_data( '_bumpmint_rule_name', $rule['name'], true );
+			if ( $this->analytics ) {
+				$this->analytics->add_order_item_attribution_meta( $item, $values );
+			}
 		}
 	}
 

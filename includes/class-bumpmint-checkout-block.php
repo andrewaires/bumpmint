@@ -84,6 +84,11 @@ class BumpMint_Checkout_Block implements IntegrationInterface {
 			true
 		);
 		wp_set_script_translations( self::SCRIPT_HANDLE, 'bumpmint-order-bump-for-woocommerce' );
+		wp_localize_script(
+			self::SCRIPT_HANDLE,
+			'bumpmintBlockAnalytics',
+			BumpMint_Analytics::get_frontend_config()
+		);
 
 		wp_enqueue_style(
 			'bumpmint-frontend',

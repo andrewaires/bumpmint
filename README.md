@@ -2,7 +2,7 @@
 
 ![BumpMint banner](.wordpress-org/banner-1544x500.png)
 
-BumpMint is a lightweight WooCommerce order bump plugin that lets store owners create targeted, one-click checkout offers with flexible display rules, secure server-side discounts, and multiple positions.
+BumpMint is a lightweight WooCommerce order bump plugin that lets store owners create targeted, one-click checkout offers with flexible display rules, secure server-side discounts, multiple positions, and local performance reports.
 
 [WordPress.org](https://wordpress.org/plugins/bumpmint-order-bump-for-woocommerce/) · [Report an issue](https://github.com/andrewaires/bumpmint/issues)
 
@@ -24,6 +24,7 @@ Present relevant add-ons when customers are ready to complete their purchase. Bu
 - Support simple products and specific purchasable variations.
 - Apply discounts to effective WooCommerce prices and validate rules, products, stock, and final prices on the server.
 - Keep classic and block checkout lightweight, responsive, and synchronized with WooCommerce cart updates.
+- Measure checkout-journey views, paid conversions, conversion rate, net bump revenue, and the best-performing offers.
 - Ready for community translations through the official WordPress.org translation platform.
 - Run with WooCommerce HPOS compatibility.
 
@@ -69,6 +70,16 @@ Each rule can remain available every day, run only on selected calendar dates, o
 The browser sends only the saved rule ID, the selected offer product ID, and the requested selection state. BumpMint verifies that the product belongs to the saved rule, resolves its effective WooCommerce price on the server, validates the current condition and stock, calculates the discount, limits the discounted quantity, synchronizes the selected offer, and enforces the trusted price during WooCommerce cart total calculations.
 
 Each rule can hide offered products that are already present in the cart. This check applies independently to each product, while products added through that same bump remain visible so the customer can remove them.
+
+## Lightweight Analytics
+
+The **Order Bumps > Analytics** screen reports offer views by checkout journey, currently valid paid conversions, conversion rate, net product revenue, the best-performing bump, and performance by date, weekday, and hour. Reports can be filtered by period, order bump, and currency.
+
+Conversions follow WooCommerce's current paid-order definition, normally **Processing** and **Completed**. If an order later becomes cancelled, failed, or fully refunded, its conversion is excluded. Partial refunds of a BumpMint product reduce its quantity and revenue; a fully refunded bump no longer counts as a conversion. Refunds unrelated to a bump do not remove that bump's conversion.
+
+Bump revenue includes only product-line totals added through BumpMint, after applicable refunds and excluding taxes and shipping. Tracking starts when the Analytics version is installed, so earlier orders are intentionally not imported. Administrators can permanently reset report data without deleting rules, products, or WooCommerce orders.
+
+Views use a random checkout-journey token kept in the WooCommerce session and stored in Analytics only as a one-way hash. The token is renewed after an order or an emptied cart, so the same bump can be counted in a later checkout without duplicate views from AJAX refreshes. BumpMint does not store customer names, email addresses, IP addresses, or user-agent strings in its Analytics tables, and no report data is sent to an external service.
 
 ## Requirements
 

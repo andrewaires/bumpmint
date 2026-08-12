@@ -1,0 +1,485 @@
+/**
+ * BumpMint Analytics dashboard.
+ */
+
+.bumpmint-analytics-wrap {
+	--bumpmint-analytics-accent: #d71920;
+	--bumpmint-analytics-blue: #2271b1;
+	--bumpmint-analytics-green: #00a32a;
+	--bumpmint-analytics-border: #dcdcde;
+	--bumpmint-analytics-muted: #646970;
+}
+
+.bumpmint-analytics-filters {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: end;
+	gap: 12px;
+	margin-top: 18px;
+	padding: 16px;
+	border: 1px solid var(--bumpmint-analytics-border);
+	border-radius: 6px;
+	background: #fff;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.bumpmint-filter-field {
+	display: flex;
+	min-width: 150px;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.bumpmint-filter-field label {
+	color: #1d2327;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.bumpmint-filter-field select,
+.bumpmint-filter-field input {
+	min-height: 34px;
+}
+
+.bumpmint-tracking-note {
+	margin: 9px 2px 0;
+	color: var(--bumpmint-analytics-muted);
+	font-size: 12px;
+}
+
+.bumpmint-metric-grid {
+	display: grid;
+	margin-top: 18px;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.bumpmint-metric-card,
+.bumpmint-report-card {
+	border: 1px solid var(--bumpmint-analytics-border);
+	border-radius: 8px;
+	background: #fff;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.bumpmint-metric-card {
+	display: flex;
+	align-items: flex-start;
+	min-width: 0;
+	padding: 18px;
+	gap: 12px;
+}
+
+.bumpmint-metric-card > div:last-child {
+	min-width: 0;
+}
+
+.bumpmint-metric-icon {
+	display: grid;
+	width: 34px;
+	height: 34px;
+	flex: 0 0 34px;
+	border-radius: 8px;
+	background: #f0f6fc;
+	color: var(--bumpmint-analytics-blue);
+	place-items: center;
+}
+
+.bumpmint-metric-icon .dashicons {
+	width: 18px;
+	height: 18px;
+	font-size: 18px;
+}
+
+.bumpmint-metric-label {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	color: var(--bumpmint-analytics-muted);
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.3;
+}
+
+.bumpmint-metric-label .dashicons {
+	width: 15px;
+	height: 15px;
+	color: #8c8f94;
+	font-size: 15px;
+	cursor: help;
+}
+
+.bumpmint-metric-value {
+	display: block;
+	margin-top: 7px;
+	color: #1d2327;
+	font-size: 23px;
+	font-weight: 650;
+	line-height: 1.15;
+}
+
+.bumpmint-metric-name {
+	overflow: hidden;
+	font-size: 16px;
+	line-height: 1.3;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.bumpmint-metric-detail {
+	display: block;
+	margin-top: 4px;
+	color: var(--bumpmint-analytics-muted);
+	font-size: 12px;
+}
+
+.bumpmint-analytics-main-grid,
+.bumpmint-analytics-breakdown-grid {
+	display: grid;
+	margin-top: 14px;
+	grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+	gap: 14px;
+}
+
+.bumpmint-analytics-breakdown-grid {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.bumpmint-report-card {
+	min-width: 0;
+	padding: 20px;
+}
+
+.bumpmint-report-heading {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 20px;
+}
+
+.bumpmint-report-heading h2 {
+	margin: 0;
+	font-size: 15px;
+	line-height: 1.35;
+}
+
+.bumpmint-report-heading p {
+	margin: 5px 0 0;
+	color: var(--bumpmint-analytics-muted);
+	font-size: 12px;
+	line-height: 1.45;
+}
+
+.bumpmint-chart-legend {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	color: var(--bumpmint-analytics-muted);
+	font-size: 12px;
+	white-space: nowrap;
+}
+
+.bumpmint-chart-legend span,
+.bumpmint-donut-legend li {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.bumpmint-chart-legend i,
+.bumpmint-donut-legend i {
+	display: inline-block;
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+}
+
+.bumpmint-chart-legend .is-views {
+	background: var(--bumpmint-analytics-blue);
+}
+
+.bumpmint-chart-legend .is-converted,
+.bumpmint-donut-legend .is-converted {
+	background: var(--bumpmint-analytics-green);
+}
+
+.bumpmint-line-chart {
+	overflow-x: auto;
+	margin-top: 20px;
+}
+
+.bumpmint-line-chart svg {
+	display: block;
+	width: 100%;
+	min-width: 560px;
+	height: auto;
+}
+
+.bumpmint-chart-grid-line {
+	stroke: #edf0f2;
+	stroke-width: 1;
+}
+
+.bumpmint-chart-axis-text {
+	fill: #787c82;
+	font-size: 11px;
+}
+
+.bumpmint-chart-line {
+	fill: none;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	stroke-width: 3;
+}
+
+.bumpmint-chart-line.is-views {
+	stroke: var(--bumpmint-analytics-blue);
+}
+
+.bumpmint-chart-line.is-converted {
+	stroke: var(--bumpmint-analytics-green);
+}
+
+.bumpmint-donut-layout {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 250px;
+	gap: 24px;
+}
+
+.bumpmint-donut {
+	position: relative;
+	width: 170px;
+	height: 170px;
+	flex: 0 0 170px;
+}
+
+.bumpmint-donut svg {
+	display: block;
+	width: 100%;
+	height: 100%;
+	transform: rotate(-90deg);
+}
+
+.bumpmint-donut circle {
+	fill: none;
+	stroke-width: 5;
+}
+
+.bumpmint-donut-track {
+	stroke: #edf0f2;
+}
+
+.bumpmint-donut-value {
+	stroke: var(--bumpmint-analytics-green);
+	stroke-linecap: round;
+}
+
+.bumpmint-donut > div {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+}
+
+.bumpmint-donut strong {
+	font-size: 25px;
+	line-height: 1;
+}
+
+.bumpmint-donut span {
+	margin-top: 5px;
+	color: var(--bumpmint-analytics-muted);
+	font-size: 11px;
+}
+
+.bumpmint-donut-legend {
+	min-width: 145px;
+	margin: 0;
+}
+
+.bumpmint-donut-legend li {
+	display: grid;
+	margin: 10px 0;
+	grid-template-columns: auto 1fr auto;
+}
+
+.bumpmint-donut-legend .is-other {
+	background: #dcdcde;
+}
+
+.bumpmint-rate-bars {
+	display: grid;
+	margin-top: 20px;
+	gap: 11px;
+}
+
+.bumpmint-rate-bars.is-hours {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	column-gap: 22px;
+}
+
+.bumpmint-rate-row {
+	display: grid;
+	align-items: center;
+	grid-template-columns: 48px minmax(70px, 1fr) 48px 42px;
+	gap: 8px;
+}
+
+.bumpmint-rate-label,
+.bumpmint-rate-row strong,
+.bumpmint-rate-row small {
+	font-size: 11px;
+}
+
+.bumpmint-rate-row strong,
+.bumpmint-rate-row small {
+	text-align: right;
+}
+
+.bumpmint-rate-row small {
+	color: var(--bumpmint-analytics-muted);
+}
+
+.bumpmint-rate-track {
+	overflow: hidden;
+	height: 7px;
+	border-radius: 999px;
+	background: #edf0f2;
+}
+
+.bumpmint-rate-track i {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: linear-gradient(90deg, var(--bumpmint-analytics-blue), #72aee6);
+}
+
+.bumpmint-ranking-card,
+.bumpmint-data-management {
+	margin-top: 14px;
+}
+
+.bumpmint-ranking-table-wrap {
+	overflow-x: auto;
+	margin: 18px -20px -20px;
+}
+
+.bumpmint-ranking-table {
+	border: 0;
+	box-shadow: none;
+}
+
+.bumpmint-ranking-table th,
+.bumpmint-ranking-table td {
+	padding: 11px 20px;
+	vertical-align: middle;
+}
+
+.bumpmint-ranking-table th:not(:first-child),
+.bumpmint-ranking-table td:not(:first-child) {
+	text-align: right;
+}
+
+.bumpmint-report-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 190px;
+	flex-direction: column;
+	color: var(--bumpmint-analytics-muted);
+	text-align: center;
+}
+
+.bumpmint-report-empty .dashicons {
+	width: 34px;
+	height: 34px;
+	font-size: 34px;
+}
+
+.bumpmint-reset-panel {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 16px;
+	padding: 16px;
+	border: 1px solid #f0c5c5;
+	border-radius: 6px;
+	background: #fff8f8;
+	gap: 24px;
+}
+
+.bumpmint-reset-panel p {
+	max-width: 760px;
+	margin: 5px 0 0;
+	color: var(--bumpmint-analytics-muted);
+}
+
+.bumpmint-reset-form {
+	display: flex;
+	align-items: flex-end;
+	min-width: 270px;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.bumpmint-reset-form label {
+	font-size: 12px;
+	text-align: right;
+}
+
+.bumpmint-reset-button {
+	border-color: #b32d2e !important;
+	color: #b32d2e !important;
+}
+
+@media screen and (max-width: 1280px) {
+	.bumpmint-metric-grid {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+@media screen and (max-width: 960px) {
+	.bumpmint-analytics-main-grid,
+	.bumpmint-analytics-breakdown-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.bumpmint-rate-bars.is-hours {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media screen and (max-width: 782px) {
+	.bumpmint-analytics-filters {
+		align-items: stretch;
+		flex-direction: column;
+	}
+
+	.bumpmint-filter-field {
+		width: 100%;
+	}
+
+	.bumpmint-metric-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.bumpmint-report-heading,
+	.bumpmint-donut-layout,
+	.bumpmint-reset-panel {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+
+	.bumpmint-reset-form {
+		align-items: flex-start;
+		min-width: 0;
+	}
+
+	.bumpmint-reset-form label {
+		text-align: left;
+	}
+}

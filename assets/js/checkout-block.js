@@ -13,15 +13,71 @@
 	}
 
 	var createElement = window.wp.element.createElement;
+	var useEffect = window.wp.element.useEffect;
+	var useRef = window.wp.element.useRef;
 	var useState = window.wp.element.useState;
 	var __ = window.wp.i18n.__;
 	var registerPlugin = window.wp.plugins.registerPlugin;
 	var blocksCheckout = window.wc.blocksCheckout;
 	var OrderMeta = blocksCheckout.OrderMeta || blocksCheckout.ExperimentalOrderMeta;
 	var extensionCartUpdate = blocksCheckout.extensionCartUpdate;
+	var viewedRules = {};
+	var pendingViews = {};
+	var viewTimer = null;
 
 	if ( ! OrderMeta || ! extensionCartUpdate ) {
 		return;
+	}
+
+	function sendPendingViews() {
+		var config = window.bumpmintBlockAnalytics || {};
+		var ruleIds = Object.keys( pendingViews );
+		var offset;
+
+		pendingViews = {};
+		viewTimer = null;
+
+		if ( ! ruleIds.length || ! config.ajaxUrl || ! config.action || ! config.nonce ) {
+			return;
+		}
+
+		for ( offset = 0; offset < ruleIds.length; offset += 20 ) {
+			sendViewBatch( ruleIds.slice( offset, offset + 20 ), config );
+		}
+	}
+
+	function sendViewBatch( ruleIds, config ) {
+		var body = new window.URLSearchParams();
+
+		body.append( 'action', config.action );
+		body.append( 'nonce', config.nonce );
+		ruleIds.forEach( function ( ruleId ) {
+			body.append( 'rule_ids[]', ruleId );
+		} );
+
+		window.fetch( config.ajaxUrl, {
+			method: 'POST',
+			credentials: 'same-origin',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+			},
+			body: body.toString(),
+		} ).catch( function () {
+			// Analytics must never interrupt checkout.
+		} );
+	}
+
+	function queueView( ruleId ) {
+		if ( ! ruleId || viewedRules[ ruleId ] ) {
+			return;
+		}
+
+		viewedRules[ ruleId ] = true;
+		pendingViews[ ruleId ] = true;
+
+		if ( ! viewTimer ) {
+			viewTimer = window.setTimeout( sendPendingViews, 250 );
+		}
 	}
 
 	function OfferCard( props ) {
@@ -29,6 +85,35 @@
 		var offerKey = offer.rule_id + ':' + offer.product_id;
 		var isPending = props.pendingKey === offerKey;
 		var feedback = props.feedback[ offerKey ] || '';
+		var cardRef = useRef( null );
+
+		useEffect( function () {
+			var card = cardRef.current;
+			var observer;
+
+			if ( ! card || viewedRules[ offer.rule_id ] ) {
+				return undefined;
+			}
+
+			if ( ! ( 'IntersectionObserver' in window ) ) {
+				queueView( offer.rule_id );
+				return undefined;
+			}
+
+			observer = new window.IntersectionObserver( function ( entries ) {
+				entries.forEach( function ( entry ) {
+					if ( entry.isIntersecting && entry.intersectionRatio >= 0.35 ) {
+						queueView( offer.rule_id );
+						observer.disconnect();
+					}
+				} );
+			}, { threshold: [ 0.35 ] } );
+			observer.observe( card );
+
+			return function () {
+				observer.disconnect();
+			};
+		}, [ offer.rule_id ] );
 
 		function updateSelection( event ) {
 			var selected = event.target.checked;
@@ -59,6 +144,8 @@
 			'div',
 			{
 				className: 'bumpmint-bump-box' + ( isPending ? ' is-loading' : '' ),
+				ref: cardRef,
+				'data-bumpmint-rule-id': offer.rule_id,
 			},
 			createElement( 'div', { className: 'bumpmint-badge' }, offer.badge ),
 			createElement(
