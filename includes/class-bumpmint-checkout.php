@@ -14,8 +14,12 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 class BumpMint_Checkout {
 
-	const AJAX_ACTION = 'bumpmint_toggle_bump';
-	const NONCE_ACTION = 'bumpmint_toggle_nonce';
+	const AJAX_ACTION              = 'bumpmint_toggle_bump';
+	const NONCE_ACTION             = 'bumpmint_toggle_nonce';
+	const NATIVE_NONCE_ACTION      = 'bumpmint_native_offer';
+	const NATIVE_RULE_PARAM        = 'bumpmint_offer';
+	const NATIVE_PRODUCT_PARAM     = 'bumpmint_offer_product';
+	const NATIVE_NONCE_PARAM       = 'bumpmint_offer_nonce';
 	const SESSION_PENDING_REMOVALS = 'bumpmint_pending_offer_removals';
 
 	/**
@@ -54,6 +58,48 @@ class BumpMint_Checkout {
 	private $price_filters_registered = false;
 
 	/**
+	 * Native offer context validated during the current add-to-cart request.
+	 *
+	 * @var array<string,mixed>|null
+	 */
+	private $validated_native_offer = null;
+
+	/**
+	 * Whether a native product form added a trusted BumpMint line.
+	 *
+	 * @var bool
+	 */
+	private $native_offer_added = false;
+
+	/**
+	 * Prevents duplicate native context fields in customized product templates.
+	 *
+	 * @var bool
+	 */
+	private $native_fields_rendered = false;
+
+	/**
+	 * Prevents duplicate native offer notices in customized product templates.
+	 *
+	 * @var bool
+	 */
+	private $native_notice_rendered = false;
+
+	/**
+	 * Whether native request data has already been parsed in this request.
+	 *
+	 * @var bool
+	 */
+	private $native_request_context_loaded = false;
+
+	/**
+	 * Cached native request context.
+	 *
+	 * @var array<string,mixed>|null
+	 */
+	private $native_request_context = null;
+
+	/**
 	 * Registers checkout, AJAX, and pricing hooks.
 	 */
 	public function __construct( $analytics = null ) {
@@ -63,6 +109,12 @@ class BumpMint_Checkout {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'wp_ajax_' . self::AJAX_ACTION, array( $this, 'ajax_toggle' ) );
 		add_action( 'wp_ajax_nopriv_' . self::AJAX_ACTION, array( $this, 'ajax_toggle' ) );
+		add_action( 'woocommerce_before_add_to_cart_form', array( $this, 'render_native_offer_notice' ) );
+		add_action( 'woocommerce_before_booking_form', array( $this, 'render_native_offer_notice' ) );
+		add_action( 'woocommerce_before_add_to_cart_button', array( $this, 'render_native_offer_fields' ) );
+		add_filter( 'woocommerce_add_to_cart_validation', array( $this, 'validate_native_offer_add_to_cart' ), PHP_INT_MAX, 6 );
+		add_filter( 'woocommerce_add_cart_item_data', array( $this, 'add_native_offer_cart_item_data' ), PHP_INT_MAX, 4 );
+		add_filter( 'woocommerce_add_to_cart_redirect', array( $this, 'redirect_native_offer_to_checkout' ), PHP_INT_MAX, 2 );
 		add_filter( 'woocommerce_update_cart_validation', array( $this, 'validate_cart_item_quantity' ), 10, 4 );
 		add_action( 'woocommerce_before_calculate_totals', array( $this, 'restore_effective_cart_item_prices' ), 1 );
 		add_action( 'woocommerce_before_calculate_totals', array( $this, 'apply_cart_item_prices' ), PHP_INT_MAX );
@@ -148,6 +200,489 @@ class BumpMint_Checkout {
 	}
 
 	/**
+	 * Returns whether an offered product must use its native product form.
+	 *
+	 * WooCommerce Bookings calculates availability, booking data, and the final
+	 * price from that form. The filter leaves a small integration point for other
+	 * product types that follow WooCommerce's standard add-to-cart hooks.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @return bool
+	 */
+	public function product_requires_native_configuration( $product ) {
+		$requires_configuration = is_a( $product, 'WC_Product' ) && $product->is_type( 'booking' );
+
+		return (bool) apply_filters(
+			'bumpmint_product_requires_native_configuration',
+			$requires_configuration,
+			$product
+		);
+	}
+
+	/**
+	 * Returns whether a native configurable product can share the current cart.
+	 *
+	 * Bookings that require confirmation have a dedicated checkout flow and
+	 * cannot safely be offered alongside the products that triggered a bump.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @return bool
+	 */
+	public function product_supports_native_configuration( $product ) {
+		if ( ! $this->product_requires_native_configuration( $product ) ) {
+			return false;
+		}
+
+		$supported = true;
+		if ( $product->is_type( 'booking' ) ) {
+			$supported = ! BumpMint_Rules::booking_requires_confirmation( $product );
+		}
+
+		return (bool) apply_filters(
+			'bumpmint_product_supports_native_configuration',
+			$supported,
+			$product
+		);
+	}
+
+	/**
+	 * Builds a session-bound link to the product's native configuration form.
+	 *
+	 * @param array      $rule    Saved rule.
+	 * @param WC_Product $product Offered product.
+	 * @return string
+	 */
+	public function get_native_configuration_url( array $rule, $product ) {
+		if ( ! $this->product_supports_native_configuration( $product ) ) {
+			return '';
+		}
+
+		$rule_id    = isset( $rule['id'] ) ? sanitize_text_field( (string) $rule['id'] ) : '';
+		$product_id = absint( $product->get_id() );
+		$permalink  = $product->get_permalink();
+		if ( '' === $rule_id || ! $product_id || ! is_string( $permalink ) || '' === $permalink ) {
+			return '';
+		}
+
+		$url = add_query_arg(
+			array(
+				self::NATIVE_RULE_PARAM    => $rule_id,
+				self::NATIVE_PRODUCT_PARAM => $product_id,
+				self::NATIVE_NONCE_PARAM   => wp_create_nonce( $this->get_native_nonce_action( $rule_id, $product_id ) ),
+			),
+			$permalink
+		);
+
+		$url = apply_filters( 'bumpmint_native_configuration_url', $url, $rule, $product );
+
+		return is_string( $url ) ? esc_url_raw( $url ) : '';
+	}
+
+	/**
+	 * Returns the call-to-action used for native product configuration.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @return string
+	 */
+	private function get_native_configuration_label( $product ) {
+		$label = $product->is_type( 'booking' )
+			? __( 'Choose date', 'bumpmint-order-bump-for-woocommerce' )
+			: __( 'Choose options', 'bumpmint-order-bump-for-woocommerce' );
+
+		return (string) apply_filters( 'bumpmint_native_configuration_label', $label, $product );
+	}
+
+	/**
+	 * Returns the helper text shown before a configurable offer is selected.
+	 *
+	 * @return string
+	 */
+	private function get_native_configuration_hint() {
+		return __( 'Complete the required options on the product page and you will be automatically redirected back to this checkout page.', 'bumpmint-order-bump-for-woocommerce' );
+	}
+
+	/**
+	 * Renders guidance above a native product form reached from a bump card.
+	 *
+	 * @return void
+	 */
+	public function render_native_offer_notice() {
+		if ( $this->native_notice_rendered ) {
+			return;
+		}
+
+		$context = $this->get_native_request_context();
+		if ( ! $this->native_context_matches_current_product( $context ) ) {
+			return;
+		}
+
+		$this->native_notice_rendered = true;
+		$result                       = $this->validate_native_offer_context( $context, WC()->cart );
+		$message                      = is_wp_error( $result )
+			? $result->get_error_message()
+			: __( 'Complete the required options below to add this order bump. You will return to checkout automatically.', 'bumpmint-order-bump-for-woocommerce' );
+		if ( ! is_wp_error( $result ) ) {
+			$this->validated_native_offer = $result;
+		}
+
+		wc_print_notice( $message, is_wp_error( $result ) ? 'error' : 'notice' );
+	}
+
+	/**
+	 * Keeps the trusted bump context inside the native add-to-cart form.
+	 *
+	 * WooCommerce Bookings exposes this standard hook in its product form, so
+	 * every booking field and its own validation remain authoritative.
+	 *
+	 * @return void
+	 */
+	public function render_native_offer_fields() {
+		if ( $this->native_fields_rendered ) {
+			return;
+		}
+
+		$context = $this->get_native_request_context();
+		if ( ! $this->native_context_matches_current_product( $context ) ) {
+			return;
+		}
+
+		$result = $this->validated_native_offer;
+		if ( ! is_array( $result ) ) {
+			$result = $this->validate_native_offer_context( $context, WC()->cart );
+		}
+		if ( is_wp_error( $result ) ) {
+			return;
+		}
+
+		$this->validated_native_offer = $result;
+		$this->native_fields_rendered = true;
+		?>
+		<input type="hidden" name="<?php echo esc_attr( self::NATIVE_RULE_PARAM ); ?>" value="<?php echo esc_attr( $context['rule_id'] ); ?>" />
+		<input type="hidden" name="<?php echo esc_attr( self::NATIVE_PRODUCT_PARAM ); ?>" value="<?php echo esc_attr( $context['product_id'] ); ?>" />
+		<input type="hidden" name="<?php echo esc_attr( self::NATIVE_NONCE_PARAM ); ?>" value="<?php echo esc_attr( $context['nonce'] ); ?>" />
+		<?php
+	}
+
+	/**
+	 * Revalidates a native order bump before the product creates cart data.
+	 *
+	 * @param bool  $passed         Current validation state.
+	 * @param int   $product_id     Parent product ID.
+	 * @param mixed $quantity       Requested quantity.
+	 * @param int   $variation_id   Variation ID, when present.
+	 * @param array $variations     Variation attributes.
+	 * @param array $cart_item_data Existing cart data.
+	 * @return bool
+	 */
+	public function validate_native_offer_add_to_cart( $passed, $product_id, $quantity = 1, $variation_id = 0, $variations = array(), $cart_item_data = array() ) {
+		unset( $variations, $cart_item_data );
+
+		if ( ! $passed ) {
+			return false;
+		}
+
+		$context = $this->get_native_request_context();
+		if ( null === $context ) {
+			return $passed;
+		}
+
+		$requested_product_id = $variation_id ? absint( $variation_id ) : absint( $product_id );
+		$result               = $this->validate_native_offer_context( $context, WC()->cart, $requested_product_id );
+		if ( is_wp_error( $result ) ) {
+			$this->validated_native_offer = null;
+			wc_add_notice( $result->get_error_message(), 'error' );
+			return false;
+		}
+
+		if ( $this->has_discount_quantity_limit( $result['rule'], $requested_product_id ) ) {
+			$max_quantity = max( 1, absint( $result['rule']['max_quantity'] ) );
+			if ( is_numeric( $quantity ) && (float) $quantity > $max_quantity ) {
+				wc_add_notice(
+					sprintf(
+						/* translators: 1: product name, 2: maximum discounted quantity. */
+						__( 'The discounted quantity for %1$s is limited to %2$d.', 'bumpmint-order-bump-for-woocommerce' ),
+						wp_strip_all_tags( $result['product']->get_name() ),
+						$max_quantity
+					),
+					'error'
+				);
+				$this->validated_native_offer = null;
+				return false;
+			}
+		}
+
+		$this->validated_native_offer = $result;
+		return true;
+	}
+
+	/**
+	 * Attaches BumpMint metadata after the native product extension builds data.
+	 *
+	 * Registered at the last priority so WooCommerce Bookings has already
+	 * calculated and stored its trusted booking cost.
+	 *
+	 * @param array $cart_item_data Existing cart item data.
+	 * @param int   $product_id     Parent product ID.
+	 * @param int   $variation_id   Variation ID, when present.
+	 * @param mixed $quantity       Requested quantity.
+	 * @return array
+	 */
+	public function add_native_offer_cart_item_data( $cart_item_data, $product_id, $variation_id = 0, $quantity = 1 ) {
+		unset( $quantity );
+
+		$context = $this->get_native_request_context();
+		if ( null === $context ) {
+			return $cart_item_data;
+		}
+
+		$requested_product_id = $variation_id ? absint( $variation_id ) : absint( $product_id );
+		$result               = $this->validated_native_offer;
+		if (
+			! is_array( $result )
+			|| empty( $result['product'] )
+			|| (int) $result['product']->get_id() !== $requested_product_id
+		) {
+			$result = $this->validate_native_offer_context( $context, WC()->cart, $requested_product_id );
+		}
+
+		if ( is_wp_error( $result ) ) {
+			return $cart_item_data;
+		}
+
+		$cart_item_data = array_merge(
+			$cart_item_data,
+			$this->build_offer_cart_item_data( $result['rule'], WC()->cart )
+		);
+
+		if (
+			isset( $cart_item_data['booking']['_cost'] )
+			&& is_numeric( $cart_item_data['booking']['_cost'] )
+		) {
+			$cart_item_data['bumpmint_native_base_price'] = wc_format_decimal(
+				max( 0.0, (float) $cart_item_data['booking']['_cost'] )
+			);
+		}
+
+		$this->native_offer_added = true;
+		return $cart_item_data;
+	}
+
+	/**
+	 * Returns a customer to checkout after a native order bump is configured.
+	 *
+	 * @param string     $url     Existing redirect URL.
+	 * @param WC_Product $product Product that was added.
+	 * @return string
+	 */
+	public function redirect_native_offer_to_checkout( $url, $product = null ) {
+		unset( $product );
+
+		if ( ! $this->native_offer_added ) {
+			return $url;
+		}
+
+		$this->native_offer_added = false;
+		return wc_get_checkout_url();
+	}
+
+	/**
+	 * Reads native offer data from the current GET or POST request.
+	 *
+	 * @return array{rule_id:string,product_id:int,nonce:string}|null
+	 */
+	private function get_native_request_context() {
+		if ( $this->native_request_context_loaded ) {
+			return $this->native_request_context;
+		}
+
+		$this->native_request_context_loaded = true;
+		$post_data = is_array( $_POST ) ? wp_unslash( $_POST ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- The nonce travels inside this data and is verified before the context is trusted.
+		$get_data  = is_array( $_GET ) ? wp_unslash( $_GET ) : array(); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- The session-bound nonce is verified before the context is trusted.
+		$source    = array();
+		if (
+			isset( $post_data[ self::NATIVE_RULE_PARAM ] )
+			|| isset( $post_data[ self::NATIVE_PRODUCT_PARAM ] )
+			|| isset( $post_data[ self::NATIVE_NONCE_PARAM ] )
+		) {
+			$source = $post_data;
+		} elseif (
+			isset( $get_data[ self::NATIVE_RULE_PARAM ] )
+			|| isset( $get_data[ self::NATIVE_PRODUCT_PARAM ] )
+			|| isset( $get_data[ self::NATIVE_NONCE_PARAM ] )
+		) {
+			$source = $get_data;
+		}
+
+		if ( empty( $source ) ) {
+			return null;
+		}
+
+		$this->native_request_context = array(
+			'rule_id'    => isset( $source[ self::NATIVE_RULE_PARAM ] ) && is_scalar( $source[ self::NATIVE_RULE_PARAM ] )
+				? sanitize_text_field( (string) $source[ self::NATIVE_RULE_PARAM ] )
+				: '',
+			'product_id' => isset( $source[ self::NATIVE_PRODUCT_PARAM ] ) && is_scalar( $source[ self::NATIVE_PRODUCT_PARAM ] )
+				? absint( $source[ self::NATIVE_PRODUCT_PARAM ] )
+				: 0,
+			'nonce'      => isset( $source[ self::NATIVE_NONCE_PARAM ] ) && is_scalar( $source[ self::NATIVE_NONCE_PARAM ] )
+				? sanitize_text_field( (string) $source[ self::NATIVE_NONCE_PARAM ] )
+				: '',
+		);
+
+		return $this->native_request_context;
+	}
+
+	/**
+	 * Checks a native URL context against the current single-product page.
+	 *
+	 * @param array<string,mixed>|null $context Native request context.
+	 * @return bool
+	 */
+	private function native_context_matches_current_product( $context ) {
+		global $product;
+
+		return is_array( $context )
+			&& ! empty( $context['rule_id'] )
+			&& ! empty( $context['product_id'] )
+			&& ! empty( $context['nonce'] )
+			&& is_a( $product, 'WC_Product' )
+			&& (int) $product->get_id() === (int) $context['product_id']
+			&& (bool) wp_verify_nonce(
+				$context['nonce'],
+				$this->get_native_nonce_action( $context['rule_id'], $context['product_id'] )
+			);
+	}
+
+	/**
+	 * Validates a session-bound native offer against current trusted state.
+	 *
+	 * @param array<string,mixed> $context              Native request context.
+	 * @param WC_Cart|null        $cart                 Current cart.
+	 * @param int                 $requested_product_id Product being added.
+	 * @return array{rule:array,product:WC_Product}|WP_Error
+	 */
+	private function validate_native_offer_context( array $context, $cart, $requested_product_id = 0 ) {
+		$rule_id    = isset( $context['rule_id'] ) ? sanitize_text_field( (string) $context['rule_id'] ) : '';
+		$product_id = isset( $context['product_id'] ) ? absint( $context['product_id'] ) : 0;
+		$nonce      = isset( $context['nonce'] ) ? sanitize_text_field( (string) $context['nonce'] ) : '';
+
+		if (
+			'' === $rule_id
+			|| ! $product_id
+			|| ! wp_verify_nonce( $nonce, $this->get_native_nonce_action( $rule_id, $product_id ) )
+		) {
+			return new WP_Error(
+				'bumpmint_invalid_native_offer',
+				__( 'This order bump link is invalid or has expired. Return to checkout and try again.', 'bumpmint-order-bump-for-woocommerce' ),
+				403
+			);
+		}
+
+		if ( $requested_product_id && $requested_product_id !== $product_id ) {
+			return new WP_Error(
+				'bumpmint_native_product_mismatch',
+				__( 'This product does not match the selected order bump.', 'bumpmint-order-bump-for-woocommerce' ),
+				403
+			);
+		}
+
+		$rule    = BumpMint_Rules::get_rule( $rule_id );
+		$product = wc_get_product( $product_id );
+		if ( ! $rule || 'active' !== $rule['status'] || ! $product ) {
+			return new WP_Error(
+				'bumpmint_native_offer_unavailable',
+				__( 'This order bump is no longer available.', 'bumpmint-order-bump-for-woocommerce' ),
+				404
+			);
+		}
+
+		if ( ! in_array( $product_id, $rule['bump_product_ids'], true ) ) {
+			return new WP_Error(
+				'bumpmint_native_product_not_in_offer',
+				__( 'This product is not part of the selected offer.', 'bumpmint-order-bump-for-woocommerce' ),
+				404
+			);
+		}
+
+		if ( ! $this->product_requires_native_configuration( $product ) ) {
+			return new WP_Error(
+				'bumpmint_native_configuration_not_required',
+				__( 'This product does not require the native configuration flow.', 'bumpmint-order-bump-for-woocommerce' ),
+				400
+			);
+		}
+
+		if ( ! $this->product_supports_native_configuration( $product ) ) {
+			return new WP_Error(
+				'bumpmint_native_configuration_unsupported',
+				__( 'This configurable product cannot be purchased together with the current cart.', 'bumpmint-order-bump-for-woocommerce' ),
+				409
+			);
+		}
+
+		if ( ! $cart ) {
+			return new WP_Error(
+				'bumpmint_cart_unavailable',
+				__( 'The cart is unavailable.', 'bumpmint-order-bump-for-woocommerce' ),
+				400
+			);
+		}
+
+		if ( $this->find_cart_item_key_for_rule( $rule_id, $product_id, $cart ) ) {
+			return new WP_Error(
+				'bumpmint_native_offer_already_selected',
+				__( 'This order bump is already in the cart.', 'bumpmint-order-bump-for-woocommerce' ),
+				409
+			);
+		}
+
+		if ( ! empty( $rule['hide_if_in_cart'] ) && $this->cart_contains_product( $product_id, $cart ) ) {
+			return new WP_Error(
+				'bumpmint_product_in_cart',
+				__( 'This product is already in the cart.', 'bumpmint-order-bump-for-woocommerce' ),
+				409
+			);
+		}
+
+		if ( ! BumpMint_Conditions::matches( $rule, $cart ) ) {
+			return new WP_Error(
+				'bumpmint_rule_not_matched',
+				__( 'The cart no longer meets this offer’s display rule.', 'bumpmint-order-bump-for-woocommerce' ),
+				409
+			);
+		}
+
+		if ( ! $this->is_product_available( $product, $cart ) ) {
+			return new WP_Error(
+				'bumpmint_product_unavailable',
+				__( 'This product is unavailable or out of stock.', 'bumpmint-order-bump-for-woocommerce' ),
+				409
+			);
+		}
+
+		return array(
+			'rule'    => $rule,
+			'product' => $product,
+		);
+	}
+
+	/**
+	 * Binds native offer nonces to the current WooCommerce customer session.
+	 *
+	 * @param string $rule_id    Rule ID.
+	 * @param int    $product_id Product ID.
+	 * @return string
+	 */
+	private function get_native_nonce_action( $rule_id, $product_id ) {
+		$customer_id = '';
+		if ( function_exists( 'WC' ) && WC()->session && method_exists( WC()->session, 'get_customer_id' ) ) {
+			$customer_id = (string) WC()->session->get_customer_id();
+		}
+
+		return self::NATIVE_NONCE_ACTION . '|' . (string) $rule_id . '|' . absint( $product_id ) . '|' . $customer_id;
+	}
+
+	/**
 	 * Renders all applicable rules assigned to one checkout position.
 	 *
 	 * @param string $position_key Position key.
@@ -218,6 +753,14 @@ class BumpMint_Checkout {
 				}
 
 				$cart_item_key = $this->find_cart_item_key_for_rule( $rule['id'], $product->get_id(), $cart );
+				if (
+					! $cart_item_key
+					&& $this->product_requires_native_configuration( $product )
+					&& ! $this->product_supports_native_configuration( $product )
+				) {
+					continue;
+				}
+
 				if ( ! $cart_item_key && ! empty( $rule['hide_if_in_cart'] ) && $this->cart_contains_product( $product->get_id(), $cart ) ) {
 					continue;
 				}
@@ -270,20 +813,26 @@ class BumpMint_Checkout {
 	 * @param string|null $cart_item_key Matching cart item key when selected.
 	 */
 	private function render_card( array $rule, $product, $cart_item_key ) {
-		$view_data  = $this->get_offer_view_data( $rule, $product, $cart_item_key );
-		$rule_id    = $view_data['rule_id'];
-		$product_id = $view_data['product_id'];
-		$is_checked = $view_data['selected'];
-		$input_id   = 'bumpmint-bump-' . sanitize_html_class( $rule_id . '-' . $product_id );
-		$image_id   = ! empty( $rule['image_id'] ) ? absint( $rule['image_id'] ) : 0;
+		$view_data              = $this->get_offer_view_data( $rule, $product, $cart_item_key );
+		$rule_id                = $view_data['rule_id'];
+		$product_id             = $view_data['product_id'];
+		$is_checked             = $view_data['selected'];
+		$requires_configuration = ! $is_checked && ! empty( $view_data['requires_configuration'] );
+		$input_id               = 'bumpmint-bump-' . sanitize_html_class( $rule_id . '-' . $product_id );
+		$image_id               = ! empty( $rule['image_id'] ) ? absint( $rule['image_id'] ) : 0;
 		?>
 		<div
 			id="<?php echo esc_attr( $input_id ); ?>-card"
-			class="bumpmint-bump-box"
+			class="bumpmint-bump-box<?php echo $requires_configuration ? ' is-configurable' : ''; ?>"
 			data-bumpmint-rule-id="<?php echo esc_attr( $rule_id ); ?>">
 			<div class="bumpmint-badge"><?php echo esc_html( $view_data['badge'] ); ?></div>
 			<div class="bumpmint-bump-content">
-				<label for="<?php echo esc_attr( $input_id ); ?>" class="bumpmint-bump-label">
+				<?php if ( $requires_configuration ) : ?>
+					<div class="bumpmint-bump-label">
+				<?php else : ?>
+					<label for="<?php echo esc_attr( $input_id ); ?>" class="bumpmint-bump-label">
+				<?php endif; ?>
+				<?php if ( ! $requires_configuration ) : ?>
 					<input
 						type="checkbox"
 						class="bumpmint-checkbox"
@@ -292,6 +841,7 @@ class BumpMint_Checkout {
 						data-product-id="<?php echo esc_attr( $product_id ); ?>"
 						<?php checked( $is_checked, true ); ?>
 					/>
+				<?php endif; ?>
 					<?php
 					if ( $image_id ) {
 						echo wp_get_attachment_image( $image_id, 'thumbnail', false, array( 'class' => 'bumpmint-bump-image' ) );
@@ -303,9 +853,21 @@ class BumpMint_Checkout {
 						<span class="bumpmint-bump-title"><?php echo esc_html( $view_data['title'] ); ?></span>
 						<span class="bumpmint-bump-price"><?php echo wp_kses_post( $view_data['price_html'] ); ?></span>
 					</span>
-				</label>
+				<?php if ( $requires_configuration ) : ?>
+					</div>
+				<?php else : ?>
+					</label>
+				<?php endif; ?>
 
 				<p class="bumpmint-bump-description"><?php echo esc_html( $view_data['description'] ); ?></p>
+				<?php if ( $requires_configuration && ! empty( $view_data['configuration_url'] ) ) : ?>
+					<div class="bumpmint-native-actions">
+						<a class="bumpmint-configure-button" href="<?php echo esc_url( $view_data['configuration_url'] ); ?>">
+							<?php echo esc_html( $view_data['configuration_label'] ); ?>
+						</a>
+						<p class="bumpmint-native-hint"><?php echo esc_html( $view_data['configuration_hint'] ); ?></p>
+					</div>
+				<?php endif; ?>
 				<p class="bumpmint-bump-feedback" role="status" aria-live="polite"></p>
 			</div>
 		</div>
@@ -321,8 +883,12 @@ class BumpMint_Checkout {
 	 * @return array<string,mixed>
 	 */
 	public function get_offer_view_data( array $rule, $product, $cart_item_key ) {
-		$is_selected          = is_string( $cart_item_key ) && '' !== $cart_item_key;
-		$effective_base_price = $is_selected && array_key_exists( $cart_item_key, $this->effective_cart_base_prices )
+		$is_selected            = is_string( $cart_item_key ) && '' !== $cart_item_key;
+		$requires_configuration = $this->product_requires_native_configuration( $product );
+		$configuration_url      = ! $is_selected && $requires_configuration
+			? $this->get_native_configuration_url( $rule, $product )
+			: '';
+		$effective_base_price   = $is_selected && array_key_exists( $cart_item_key, $this->effective_cart_base_prices )
 			? $this->effective_cart_base_prices[ $cart_item_key ]
 			: null;
 		$prices               = BumpMint_Rules::calculate_prices( $rule, $product, $effective_base_price );
@@ -354,15 +920,19 @@ class BumpMint_Checkout {
 		}
 
 		return array(
-			'rule_id'     => (string) $rule['id'],
-			'product_id'  => (int) $product->get_id(),
-			'selected'    => $is_selected,
-			'badge'       => BumpMint_Rules::get_badge_text( $rule, $product, $effective_base_price ),
-			'title'       => $title,
-			'description' => $description,
-			'price_html'  => wp_kses_post( BumpMint_Rules::get_price_html( $rule, $product, $effective_base_price ) ),
-			'image_url'   => $image_url,
-			'image_alt'   => $image_alt,
+			'rule_id'                => (string) $rule['id'],
+			'product_id'             => (int) $product->get_id(),
+			'selected'               => $is_selected,
+			'requires_configuration' => $requires_configuration,
+			'configuration_url'      => $configuration_url,
+			'configuration_label'    => $requires_configuration ? $this->get_native_configuration_label( $product ) : '',
+			'configuration_hint'     => $requires_configuration ? $this->get_native_configuration_hint() : '',
+			'badge'                  => BumpMint_Rules::get_badge_text( $rule, $product, $effective_base_price ),
+			'title'                  => $title,
+			'description'            => $description,
+			'price_html'             => wp_kses_post( BumpMint_Rules::get_price_html( $rule, $product, $effective_base_price ) ),
+			'image_url'              => $image_url,
+			'image_alt'              => $image_alt,
 		);
 	}
 
@@ -446,18 +1016,15 @@ class BumpMint_Checkout {
 			return new WP_Error( 'bumpmint_product_unavailable', __( 'This product is unavailable or out of stock.', 'bumpmint-order-bump-for-woocommerce' ), 409 );
 		}
 
-		$cart_item_data = array(
-			'bumpmint_rule_id' => $rule['id'],
-			'bumpmint_source'  => 'order_bump',
-		);
-		if ( $this->analytics ) {
-			$attribution = $this->analytics->record_offer_view( $rule, $cart );
-			if ( ! empty( $attribution ) ) {
-				$cart_item_data['bumpmint_analytics_session_hash'] = $attribution['session_hash'];
-				$cart_item_data['bumpmint_analytics_tracking_id']  = $attribution['tracking_id'];
-				$cart_item_data['bumpmint_analytics_view_id']      = $attribution['view_id'];
-			}
+		if ( $this->product_requires_native_configuration( $product ) ) {
+			return new WP_Error(
+				'bumpmint_configuration_required',
+				__( 'Choose the required options on the product page before adding this offer.', 'bumpmint-order-bump-for-woocommerce' ),
+				409
+			);
 		}
+
+		$cart_item_data = $this->build_offer_cart_item_data( $rule, $cart );
 		$notices_before = wc_get_notices();
 
 		if ( $product->is_type( 'variation' ) ) {
@@ -480,6 +1047,31 @@ class BumpMint_Checkout {
 
 		$cart->calculate_totals();
 		return array( 'cart_hash' => $cart->get_cart_hash() );
+	}
+
+	/**
+	 * Builds trusted cart metadata shared by direct and native offer additions.
+	 *
+	 * @param array        $rule Saved rule.
+	 * @param WC_Cart|null $cart Current cart.
+	 * @return array<string,mixed>
+	 */
+	private function build_offer_cart_item_data( array $rule, $cart ) {
+		$cart_item_data = array(
+			'bumpmint_rule_id' => $rule['id'],
+			'bumpmint_source'  => 'order_bump',
+		);
+
+		if ( $this->analytics ) {
+			$attribution = $this->analytics->record_offer_view( $rule, $cart );
+			if ( ! empty( $attribution ) ) {
+				$cart_item_data['bumpmint_analytics_session_hash'] = $attribution['session_hash'];
+				$cart_item_data['bumpmint_analytics_tracking_id']  = $attribution['tracking_id'];
+				$cart_item_data['bumpmint_analytics_view_id']      = $attribution['view_id'];
+			}
+		}
+
+		return $cart_item_data;
 	}
 
 	/**
@@ -554,10 +1146,7 @@ class BumpMint_Checkout {
 				continue;
 			}
 
-			$effective_price = $canonical_product->get_price();
-			if ( ! is_numeric( $effective_price ) ) {
-				$effective_price = $canonical_product->get_price( 'edit' );
-			}
+			$effective_price = $this->get_cart_item_restore_price( $cart_item, $canonical_product );
 
 			if ( is_numeric( $effective_price ) ) {
 				$cart_item['data']->set_price( wc_format_decimal( max( 0.0, (float) $effective_price ) ) );
@@ -611,7 +1200,11 @@ class BumpMint_Checkout {
 					$is_eligible = $rule
 						&& in_array( $product_id, $rule['bump_product_ids'], true )
 						&& ! empty( $rule_eligibility[ $rule_id ] )
-						&& $canonical_product;
+						&& $canonical_product
+						&& (
+							! $this->product_requires_native_configuration( $canonical_product )
+							|| $this->product_supports_native_configuration( $canonical_product )
+						);
 
 					if ( ! $is_eligible ) {
 						$items_to_remove[ $cart_item_key ] = array(
@@ -658,14 +1251,15 @@ class BumpMint_Checkout {
 				$is_eligible = $rule
 					&& $canonical_product
 					&& in_array( $cart_product_id, $rule['bump_product_ids'], true )
-					&& ! empty( $rule_eligibility[ $rule_id ] );
+					&& ! empty( $rule_eligibility[ $rule_id ] )
+					&& (
+						! $this->product_requires_native_configuration( $canonical_product )
+						|| $this->product_supports_native_configuration( $canonical_product )
+					);
 
 				if ( ! $is_eligible ) {
 					if ( $canonical_product ) {
-						$effective_price = $canonical_product->get_price();
-						if ( ! is_numeric( $effective_price ) ) {
-							$effective_price = $canonical_product->get_price( 'edit' );
-						}
+						$effective_price = $this->get_cart_item_restore_price( $cart_item, $canonical_product );
 						if ( is_numeric( $effective_price ) ) {
 							$cart_item['data']->set_price( wc_format_decimal( max( 0.0, (float) $effective_price ) ) );
 						}
@@ -692,6 +1286,34 @@ class BumpMint_Checkout {
 		} finally {
 			$this->applying_prices = false;
 		}
+	}
+
+	/**
+	 * Returns the effective price to restore before third-party pricing hooks run.
+	 *
+	 * Native booking forms calculate a trusted cost from the selected date,
+	 * duration, resources, and persons. That cost must remain the base for the
+	 * BumpMint discount instead of being replaced by the product's catalog price.
+	 *
+	 * @param array      $cart_item         Cart item data.
+	 * @param WC_Product $canonical_product Fresh product object.
+	 * @return float|string|null
+	 */
+	private function get_cart_item_restore_price( array $cart_item, $canonical_product ) {
+		if ( isset( $cart_item['booking']['_cost'] ) && is_numeric( $cart_item['booking']['_cost'] ) ) {
+			return wc_format_decimal( max( 0.0, (float) $cart_item['booking']['_cost'] ) );
+		}
+
+		if ( isset( $cart_item['bumpmint_native_base_price'] ) && is_numeric( $cart_item['bumpmint_native_base_price'] ) ) {
+			return wc_format_decimal( max( 0.0, (float) $cart_item['bumpmint_native_base_price'] ) );
+		}
+
+		$effective_price = $canonical_product->get_price();
+		if ( ! is_numeric( $effective_price ) ) {
+			$effective_price = $canonical_product->get_price( 'edit' );
+		}
+
+		return is_numeric( $effective_price ) ? $effective_price : null;
 	}
 
 	/**

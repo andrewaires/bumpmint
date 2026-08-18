@@ -596,7 +596,7 @@ class BumpMint_Admin {
 							<th scope="row"><label for="bumpmint-bump-product"><?php esc_html_e( 'Products to offer', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
 							<td>
 								<?php $this->render_product_select( 'bumpmint_rule[bump_product_ids][]', 'bumpmint-bump-product', $rule['bump_product_ids'] ); ?>
-								<p class="description"><?php esc_html_e( 'Choose one or more directly purchasable products or specific variations. Each product is displayed as a separate offer.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+								<p class="description"><?php esc_html_e( 'Choose one or more directly purchasable products, specific variations, or supported bookable products. Each product is displayed as a separate offer.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
 							</td>
 						</tr>
 						<tr>

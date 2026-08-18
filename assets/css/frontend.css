@@ -85,6 +85,10 @@
 	cursor: pointer;
 }
 
+.bumpmint-bump-box.is-configurable .bumpmint-bump-label {
+	cursor: default;
+}
+
 .bumpmint-bump-label input[type="checkbox"].bumpmint-checkbox {
 	flex-shrink: 0;
 	width: 22px;
@@ -143,6 +147,52 @@
 	color: var(--bumpmint-text-muted);
 	font-size: 14px;
 	line-height: 1.5;
+}
+
+.bumpmint-bump-box.is-configurable .bumpmint-bump-description {
+	padding-left: 0;
+}
+
+.bumpmint-native-actions {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px 12px;
+	margin-top: 12px;
+}
+
+.bumpmint-configure-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 40px;
+	padding: 8px 16px;
+	border: 1px solid var(--bumpmint-accent);
+	border-radius: 6px;
+	background: var(--bumpmint-accent);
+	color: #fff !important;
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 1.35;
+	text-decoration: none !important;
+	transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bumpmint-configure-button:hover,
+.bumpmint-configure-button:focus {
+	border-color: var(--bumpmint-accent-dark);
+	background: var(--bumpmint-accent-dark);
+	color: #fff !important;
+	box-shadow: 0 0 0 2px rgba(215, 25, 32, 0.18);
+}
+
+.bumpmint-native-hint {
+	flex: 1 1 220px;
+	margin: 0;
+	color: var(--bumpmint-text-muted);
+	font-size: 13px;
+	font-weight: 400;
+	line-height: 1.45;
 }
 
 .bumpmint-bump-feedback {

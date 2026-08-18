@@ -2,7 +2,7 @@
 
 ![BumpMint banner](.wordpress-org/banner-1544x500.png)
 
-BumpMint is a lightweight WooCommerce order bump plugin that lets store owners create targeted, one-click checkout offers with flexible display rules, secure server-side discounts, multiple positions, and local performance reports.
+BumpMint is a lightweight WooCommerce order bump plugin that lets store owners create targeted checkout offers with flexible display rules, secure server-side discounts, multiple positions, and local performance reports. Standard products remain one-click offers, while bookable products use their native configuration form.
 
 [WordPress.org](https://wordpress.org/plugins/bumpmint-order-bump-for-woocommerce/) · [Report an issue](https://github.com/andrewaires/bumpmint/issues)
 
@@ -21,7 +21,7 @@ Present relevant add-ons when customers are ready to complete their purchase. Bu
 - Optionally hide an offered product when that exact product or variation is already in the cart.
 - Position offers before/after order items, before payment, or before the Place order button.
 - Customize the banner, product image, title, description, and dynamic placeholders.
-- Support simple products and specific purchasable variations.
+- Support simple products, specific purchasable variations, and WooCommerce Bookings products that do not require confirmation.
 - Apply discounts to effective WooCommerce prices and validate rules, products, stock, and final prices on the server.
 - Keep classic and block checkout lightweight, responsive, and synchronized with WooCommerce cart updates.
 - Measure checkout-journey views, paid conversions, conversion rate, net bump revenue, and the best-performing offers.
@@ -67,9 +67,11 @@ Each rule can remain available every day, run only on selected calendar dates, o
 
 ## Secure discounts
 
-The browser sends only the saved rule ID, the selected offer product ID, and the requested selection state. BumpMint verifies that the product belongs to the saved rule, resolves its effective WooCommerce price on the server, validates the current condition and stock, calculates the discount, limits the discounted quantity, synchronizes the selected offer, and enforces the trusted price during WooCommerce cart total calculations.
+For one-click offers, the browser sends only the saved rule ID, selected offer product ID, and requested selection state. Configurable booking offers submit their required fields through the native WooCommerce Bookings product form. In both flows, BumpMint verifies the saved rule and current cart on the server, resolves the effective price, validates eligibility and stock, calculates the discount, limits the discounted quantity, and enforces the trusted price during WooCommerce cart total calculations.
 
 Each rule can hide offered products that are already present in the cart. This check applies independently to each product, while products added through that same bump remain visible so the customer can remove them.
+
+Bookable offers use the native WooCommerce Bookings product form for date, availability, resource, and person selection. After the booking is added, the customer returns to checkout and BumpMint applies its discount to the booking cost calculated by WooCommerce. Bookings that require confirmation are excluded because they use a separate purchase flow.
 
 ## Lightweight Analytics
 

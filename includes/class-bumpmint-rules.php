@@ -335,6 +335,13 @@ class BumpMint_Rules {
 					__( 'Choose directly purchasable products or specific variations.', 'bumpmint-order-bump-for-woocommerce' )
 				);
 			}
+
+			if ( self::booking_requires_confirmation( $bump_product ) ) {
+				return new WP_Error(
+					'bumpmint_booking_requires_confirmation',
+					__( 'Bookings that require confirmation cannot be used as order bump products.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
 		}
 
 		if ( BumpMint_Conditions::PRODUCT === $condition_type ) {
@@ -770,6 +777,33 @@ class BumpMint_Rules {
 		$product_ids = array_filter( $product_ids );
 
 		return array_values( array_unique( $product_ids ) );
+	}
+
+	/**
+	 * Checks whether a bookable product requires its separate confirmation flow.
+	 *
+	 * @param WC_Product $product Product object.
+	 * @return bool
+	 */
+	public static function booking_requires_confirmation( $product ) {
+		if ( ! $product->is_type( 'booking' ) ) {
+			return false;
+		}
+
+		$requires_confirmation = false;
+		if ( method_exists( $product, 'get_requires_confirmation' ) ) {
+			$requires_confirmation = $product->get_requires_confirmation();
+		} elseif ( method_exists( $product, 'requires_confirmation' ) ) {
+			$requires_confirmation = $product->requires_confirmation();
+		} elseif ( $product->get_id() ) {
+			$requires_confirmation = get_post_meta( $product->get_id(), '_wc_booking_requires_confirmation', true );
+		}
+
+		if ( is_string( $requires_confirmation ) ) {
+			$requires_confirmation = wc_string_to_bool( $requires_confirmation );
+		}
+
+		return (bool) $requires_confirmation;
 	}
 
 	/**

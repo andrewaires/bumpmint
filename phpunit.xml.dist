@@ -10,6 +10,7 @@
 			<file>tests/test-effective-pricing.php</file>
 			<file>tests/test-checkout-eligibility.php</file>
 			<file>tests/test-checkout-block.php</file>
+			<file>tests/test-native-offers.php</file>
 			<file>tests/test-storage.php</file>
 			<file>tests/test-category-triggers.php</file>
 			<file>tests/test-scheduling.php</file>

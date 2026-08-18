@@ -86,6 +86,7 @@
 		var isPending = props.pendingKey === offerKey;
 		var feedback = props.feedback[ offerKey ] || '';
 		var cardRef = useRef( null );
+		var requiresConfiguration = !! offer.requires_configuration && ! offer.selected;
 
 		useEffect( function () {
 			var card = cardRef.current;
@@ -143,7 +144,9 @@
 		return createElement(
 			'div',
 			{
-				className: 'bumpmint-bump-box' + ( isPending ? ' is-loading' : '' ),
+				className: 'bumpmint-bump-box' +
+					( isPending ? ' is-loading' : '' ) +
+					( requiresConfiguration ? ' is-configurable' : '' ),
 				ref: cardRef,
 				'data-bumpmint-rule-id': offer.rule_id,
 			},
@@ -152,15 +155,17 @@
 				'div',
 				{ className: 'bumpmint-bump-content' },
 				createElement(
-					'label',
+					requiresConfiguration ? 'div' : 'label',
 					{ className: 'bumpmint-bump-label' },
-					createElement( 'input', {
-						type: 'checkbox',
-						className: 'bumpmint-checkbox',
-						checked: !! offer.selected,
-						disabled: isPending,
-						onChange: updateSelection,
-					} ),
+					requiresConfiguration
+						? null
+						: createElement( 'input', {
+							type: 'checkbox',
+							className: 'bumpmint-checkbox',
+							checked: !! offer.selected,
+							disabled: isPending,
+							onChange: updateSelection,
+						} ),
 					offer.image_url
 						? createElement( 'img', {
 							className: 'bumpmint-bump-image',
@@ -179,6 +184,21 @@
 					)
 				),
 				createElement( 'p', { className: 'bumpmint-bump-description' }, offer.description ),
+				requiresConfiguration && offer.configuration_url
+					? createElement(
+						'div',
+						{ className: 'bumpmint-native-actions' },
+						createElement(
+							'a',
+							{
+								className: 'bumpmint-configure-button',
+								href: offer.configuration_url,
+							},
+							offer.configuration_label || __( 'Choose options', 'bumpmint-order-bump-for-woocommerce' )
+						),
+						createElement( 'p', { className: 'bumpmint-native-hint' }, offer.configuration_hint || '' )
+					)
+					: null,
 				createElement(
 					'p',
 					{

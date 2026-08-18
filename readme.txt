@@ -2,11 +2,11 @@
 Contributors: andrewaires
 Tags: woocommerce, order bump, checkout, upsell, sales funnel
 Requires at least: 6.5
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 7.4
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 1.5.0
+Stable tag: 1.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -16,14 +16,14 @@ Create high-converting WooCommerce order bumps with flexible targeting, secure d
 
 ### Turn every WooCommerce checkout into an opportunity to sell more
 
-**BumpMint** helps you add relevant, one-click order bump offers directly to the WooCommerce checkout. Present the right complementary product at the moment customers are ready to buy and increase your store's average order value without adding extra steps to the purchase.
+**BumpMint** helps you add relevant order bump offers directly to the WooCommerce checkout. Standard products remain one-click offers, while supported bookable products use their native date and availability form. Present the right complementary product at the moment customers are ready to buy and increase your store's average order value.
 
 Create multiple order bumps, target each offer with flexible cart rules, include one or more offer products, choose exactly where they appear, and optionally add an exclusive fixed or percentage discount. Everything is managed from a clean, lightweight WordPress interface—no coding required.
 
 ### Why choose BumpMint?
 
 * **Increase average order value** — Offer relevant add-ons before the customer completes the order.
-* **Create a frictionless experience** — Customers accept an offer with one click, without leaving checkout.
+* **Create a frictionless experience** — Standard products are accepted with one click; supported bookings use WooCommerce's native configuration flow.
 * **Target offers more precisely** — Display each bump when any or all selected products are in the cart, when a product belongs to a selected category, or according to cart subtotal or item quantity.
 * **Schedule offer availability** — Use specific calendar dates, recurring weekdays, and optional time ranges in the WordPress site timezone.
 * **Avoid redundant offers** — Optionally hide each offered product when that exact product or variation is already in the cart.
@@ -88,16 +88,16 @@ Match the offer to your product and campaign:
 * Create a custom offer title and description.
 * Insert dynamic `{product}` and `{price}` placeholders.
 * Upload a custom image or automatically use the product image.
-* Offer one or more simple products or specific purchasable variations as separately selectable offers.
+* Offer one or more simple products, specific purchasable variations, or supported WooCommerce Bookings products as separately selectable offers.
 * Optionally hide offered products that are already in the cart while leaving the rule's other products available.
 * Display the original price and discounted price together.
 * Deliver a responsive experience across desktop and mobile.
 
 = Keep Prices and Cart Actions Secure =
 
-The browser never decides which product price should be charged. It sends only the saved rule ID, the selected offer product ID, and the requested selection state.
+The browser never decides which product price should be charged. One-click offers send the saved rule ID, selected offer product ID, and requested selection state. Configurable booking offers submit their required fields through the native WooCommerce Bookings product form.
 
-BumpMint then verifies that the product belongs to the saved rule and validates the current cart condition, purchasability, stock, and discounted quantity on the server. The discount is calculated from the effective WooCommerce price, synchronized with the selected offer, and enforced during cart total calculations.
+BumpMint then verifies the saved rule and current cart condition, purchasability, stock, and discounted quantity on the server. The discount is calculated from the effective WooCommerce or booking price, synchronized with the selected offer, and enforced during cart total calculations.
 
 = Measure Order Bump Performance =
 
@@ -121,7 +121,7 @@ Views use a random checkout-journey token kept in the WooCommerce session and st
 
 1. Create an order bump and choose one or more products you want to offer.
 2. Select a display rule, checkout position, and optional discount.
-3. Customize the banner and content, save the offer, and let customers add it with one click.
+3. Customize the banner and content, save the offer, and let customers add it from checkout.
 
 Install BumpMint and turn your existing WooCommerce checkout into a smarter revenue opportunity.
 
@@ -145,7 +145,7 @@ BumpMint supports:
 * WooCommerce Checkout Blocks through the Store API and the extension point below the order summary.
 * Compatible page-builder checkout widgets, including the native Elementor Pro Checkout widget.
 * WooCommerce High-Performance Order Storage (HPOS).
-* Simple products and specific purchasable variations.
+* Simple products, specific purchasable variations, and WooCommerce Bookings products that do not require confirmation.
 * Payment gateways that work normally with the selected WooCommerce checkout type.
 
 BumpMint does not display order bumps on the cart page, so it has no Cart Block interface.
@@ -222,6 +222,10 @@ Yes. Enter any custom banner text. If the field is empty, BumpMint displays **Sa
 
 Yes. A specific variation can be used as a trigger or offered product. A variable parent product must be configured as a specific purchasable variation when used as the offer.
 
+= Does BumpMint support WooCommerce Bookings? =
+
+Yes, for bookable products that do not require confirmation. The offer sends the customer to the product's native booking form to choose the date and any other required options, then returns to checkout. BumpMint calculates its discount from the booking price calculated by WooCommerce. Bookings that require confirmation use a separate flow and cannot be offered as order bumps.
+
 = Where can I display the order bump? =
 
 On classic checkout, you can display it before or after the order items, before payment methods, or before the **Place order** button. Checkout Blocks display eligible offers below the order summary.
@@ -255,6 +259,13 @@ Development is hosted on [GitHub](https://github.com/andrewaires/bumpmint). Use 
 5. Customize the offered products, secure discount, promotional banner, title, description, placeholders, and image.
 
 == Changelog ==
+
+= 1.6.0 - 2026-08-18 =
+* Added native WooCommerce Bookings offers that use the product's date and options form before returning customers to checkout automatically.
+* Applied order bump discounts to the booking cost calculated by WooCommerce and kept configured bookings removable in classic checkout and Checkout Blocks.
+* Added signed, session-bound handoffs with server-side validation of the saved rule, product, cart eligibility, stock, and quantity.
+* Excluded booking products that require confirmation because they use a separate purchase and payment flow.
+* Verified compatibility with WordPress 7.1.
 
 = 1.5.0 - 2026-08-11 =
 * Added a lightweight local Analytics dashboard with period, order bump, and currency filters.
