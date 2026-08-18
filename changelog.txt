@@ -1,0 +1,75 @@
+BumpMint - Complete Changelog
+=============================
+
+1.6.1 - 2026-08-18
+------------------
+- Fixed WooCommerce price entities appearing as encoded text in Checkout Block offer badges, titles, and descriptions.
+- Refreshed the WordPress.org and GitHub presentation with concise documentation and current screenshots.
+
+1.6.0 - 2026-08-18
+------------------
+- Added native WooCommerce Bookings offers that use the product's date and options form before returning customers to checkout automatically.
+- Applied order bump discounts to the booking cost calculated by WooCommerce and kept configured bookings removable in classic checkout and Checkout Blocks.
+- Added signed, session-bound handoffs with server-side validation of the saved rule, product, cart eligibility, stock, and quantity.
+- Excluded booking products that require confirmation because they use a separate purchase and payment flow.
+- Verified compatibility with WordPress 7.1.
+
+1.5.0 - 2026-08-11
+------------------
+- Added a lightweight local Analytics dashboard with period, order bump, and currency filters.
+- Added checkout-journey views, paid conversions, conversion rate, net bump revenue, top-performing bump, and date, weekday, and hourly breakdowns.
+- Synchronized conversions with current WooCommerce paid statuses and BumpMint line refunds while excluding taxes and shipping from revenue.
+- Added prospective-only tracking, pseudonymous checkout attribution, and a secure option to reset all report data.
+
+1.4.0 - 2026-08-11
+------------------
+- Added availability scheduling for every day, selected calendar dates, or recurring weekdays.
+- Added optional time ranges based on the WordPress site timezone, including ranges that continue past midnight.
+- Enforced schedule eligibility on the server across classic checkout and Checkout Blocks, including automatic removal of selected offers that are no longer scheduled.
+
+1.3.0 - 2026-08-10
+------------------
+- Added product category triggers, including category-only rules and product/category OR matching.
+- Added native WooCommerce category selection with parent-category matching and variation support.
+- Added automated coverage for category eligibility, validation, duplicate detection, and admin category selection.
+- Improved eligibility messages and documentation for product and category triggers.
+
+1.2.0 - 2026-08-08
+------------------
+- Added WooCommerce Checkout Block support with eligible order bumps displayed below the order summary.
+- Added Store API-backed offer selection with server-side pricing, stock, quantity, and eligibility validation.
+- Kept selected offers and stale-checkout protection synchronized during Checkout Block updates.
+- Clarified that configurable checkout positions apply only to classic checkout and added Checkout Block-specific spacing.
+
+1.1.3 - 2026-08-06
+------------------
+- Applied order bump discounts to effective WooCommerce prices, including compatible product filters and cart pricing adjustments.
+- Synchronized selected offer cards, descriptions, placeholders, and fixed-discount badges with the price charged in the cart.
+- Prevented repeated total calculations from compounding order bump discounts while preserving regular cart lines of the same product.
+- Moved stored order bump rules out of WordPress autoloaded options, including a one-time migration for existing installations.
+
+1.1.2 - 2026-08-05
+------------------
+- Fixed subtotal rules to evaluate current cart prices after cart changes instead of stale line totals.
+- Automatically removed BumpMint-added products when their display rule stops matching while preserving independently added cart lines.
+- Prevented stale checkout submissions until updated totals were reviewed and synchronized offers before payment methods during AJAX refreshes.
+
+1.1.1 - 2026-08-04
+------------------
+- Fixed rejected cart additions to display the specific WooCommerce error inside the order bump without duplicating it globally.
+- Improved order bump error and description readability.
+
+1.1.0 - 2026-08-04
+------------------
+- Added multiple trigger products with Any or All matching.
+- Added multiple independently selectable offer products to each order bump.
+- Added an option to hide offered products that are already in the cart.
+- Added server-side discounted quantity limits for each offered product, defaulting to one unit.
+- Added direct WordPress.org support and review links to BumpMint admin screens and plugin metadata.
+- Added an admin warning for plugin packages installed outside the canonical directory.
+- Fixed WooCommerce help tooltips and improved product selector removal controls.
+- Improved PHP compatibility checks and release workflow validation.
+
+1.0.0 - 2026-08-02
+------------------
+- Initial release.
