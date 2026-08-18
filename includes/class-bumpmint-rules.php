@@ -556,6 +556,26 @@ class BumpMint_Rules {
 	}
 
 	/**
+	 * Returns a formatted WooCommerce price as plain Unicode text.
+	 *
+	 * WooCommerce price HTML can contain numeric currency entities and named
+	 * spacing entities. Decode them before plain-text values are sent through
+	 * the Store API so React does not display the entity source to customers.
+	 *
+	 * @param float|int|string $amount Price amount.
+	 * @return string
+	 */
+	public static function get_price_text( $amount ) {
+		$charset = get_bloginfo( 'charset' );
+
+		return html_entity_decode(
+			wp_strip_all_tags( wc_price( $amount ) ),
+			ENT_QUOTES | ENT_HTML5,
+			$charset ? $charset : 'UTF-8'
+		);
+	}
+
+	/**
 	 * Returns the configured or generated badge text.
 	 *
 	 * @param array           $rule       Rule data.
@@ -581,7 +601,7 @@ class BumpMint_Rules {
 		$discount = max( 0.0, $prices['base'] - $prices['offer'] );
 
 		/* translators: %s: formatted fixed discount amount. */
-		return sprintf( __( '%s OFF', 'bumpmint-order-bump-for-woocommerce' ), wp_strip_all_tags( wc_price( $discount ) ) );
+		return sprintf( __( '%s OFF', 'bumpmint-order-bump-for-woocommerce' ), self::get_price_text( $discount ) );
 	}
 
 	/**

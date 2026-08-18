@@ -893,7 +893,7 @@ class BumpMint_Checkout {
 			: null;
 		$prices               = BumpMint_Rules::calculate_prices( $rule, $product, $effective_base_price );
 		$offer_display_price  = wc_get_price_to_display( $product, array( 'price' => $prices['offer'] ) );
-		$formatted_price      = wp_strip_all_tags( wc_price( $offer_display_price ) );
+		$formatted_price      = BumpMint_Rules::get_price_text( $offer_display_price );
 		$product_name         = $product->get_name();
 
 		$title = ! empty( $rule['offer_title'] )
