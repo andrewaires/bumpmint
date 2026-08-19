@@ -115,6 +115,8 @@ abstract class BumpMint_Test_Case extends WP_UnitTestCase {
 				'condition_match'       => 'any',
 				'condition_operator'    => 'greater_than',
 				'condition_value'       => '0',
+				'customer_audience'     => BumpMint_Conditions::AUDIENCE_EVERYONE,
+				'customer_role_slugs'   => array(),
 				'schedule_type'         => BumpMint_Conditions::SCHEDULE_ALWAYS,
 				'schedule_dates'        => array(),
 				'schedule_weekdays'     => array(),

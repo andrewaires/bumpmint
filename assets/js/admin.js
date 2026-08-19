@@ -50,6 +50,14 @@
 		$matchRow.find( ':input' ).prop( 'disabled', !( isProductCondition && hasProducts ) );
 	}
 
+	function updateCustomerFields( $form ) {
+		var targetsRoles = 'roles' === $form.find( '#bumpmint-customer-audience' ).val();
+		var $rolesRow    = $form.find( '.bumpmint-customer-roles-row' );
+
+		$rolesRow.toggle( targetsRoles );
+		$rolesRow.find( ':input' ).prop( 'disabled', ! targetsRoles );
+	}
+
 	function updateScheduleFields( $form ) {
 		var scheduleType = $form.find( '#bumpmint-schedule-type' ).val();
 		var showDates    = 'dates' === scheduleType;
@@ -115,6 +123,10 @@
 		updateProductTriggerFields( $( this ).closest( 'form' ) );
 	});
 
+	$( document ).on( 'change', '#bumpmint-customer-audience', function () {
+		updateCustomerFields( $( this ).closest( 'form' ) );
+	});
+
 	$( document ).on( 'change', '#bumpmint-discount-enabled', function () {
 		updateDiscountFields( $( this ).closest( 'form' ) );
 	});
@@ -156,6 +168,7 @@
 			var $form = $( this );
 			updateConditionFields( $form );
 			updateProductTriggerFields( $form );
+			updateCustomerFields( $form );
 			updateScheduleFields( $form );
 			updateDiscountFields( $form );
 			initializeHelpTips( $form );

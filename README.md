@@ -92,6 +92,7 @@ Report data remains in the WordPress database. BumpMint does not store names, em
 
 - **Multiple order bumps:** Manage multiple checkout campaigns from WordPress.
 - **Campaign status:** Activate or deactivate an order bump without deleting its settings.
+- **Customer targeting:** Show offers to everyone, logged-in users, logged-out visitors, or selected roles.
 - **Multiple offers:** Add independently selectable products to one campaign.
 - **Product and variation targeting:** Match any or all selected items.
 - **Category targeting:** Match categories, child categories, or category-only rules.

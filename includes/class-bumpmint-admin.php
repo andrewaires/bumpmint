@@ -158,6 +158,9 @@ class BumpMint_Admin {
 			if ( ! isset( $data['condition_category_ids'] ) ) {
 				$data['condition_category_ids'] = array();
 			}
+			if ( ! isset( $data['customer_role_slugs'] ) ) {
+				$data['customer_role_slugs'] = array();
+			}
 			if ( ! isset( $data['schedule_dates'] ) ) {
 				$data['schedule_dates'] = array();
 			}
@@ -276,6 +279,7 @@ class BumpMint_Admin {
 	 */
 	private function render_rule_row( array $rule ) {
 		$products         = $this->get_products( $rule['bump_product_ids'] );
+		$customer_summary = $this->get_customer_summary( $rule );
 		$schedule_summary = $this->get_schedule_summary( $rule );
 		$is_active         = BumpMint_Rules::STATUS_ACTIVE === $rule['status'];
 		$next_status       = $is_active ? BumpMint_Rules::STATUS_INACTIVE : BumpMint_Rules::STATUS_ACTIVE;
@@ -312,6 +316,9 @@ class BumpMint_Admin {
 			<td class="column-rule" data-colname="<?php esc_attr_e( 'Rule type', 'bumpmint-order-bump-for-woocommerce' ); ?>">
 				<?php echo esc_html( BumpMint_Conditions::get_label( $rule['condition_type'] ) ); ?>
 				<span class="bumpmint-row-detail"><?php echo esc_html( $this->get_condition_summary( $rule ) ); ?></span>
+				<?php if ( $customer_summary ) : ?>
+					<span class="bumpmint-row-detail"><?php echo esc_html( $customer_summary ); ?></span>
+				<?php endif; ?>
 				<?php if ( $schedule_summary ) : ?>
 					<span class="bumpmint-row-detail"><?php echo esc_html( $schedule_summary ); ?></span>
 				<?php endif; ?>
@@ -365,6 +372,8 @@ class BumpMint_Admin {
 			'condition_match'       => 'any',
 			'condition_operator'    => 'greater_than',
 			'condition_value'       => '',
+			'customer_audience'     => BumpMint_Conditions::AUDIENCE_EVERYONE,
+			'customer_role_slugs'   => array(),
 			'schedule_type'         => BumpMint_Conditions::SCHEDULE_ALWAYS,
 			'schedule_dates'        => array(),
 			'schedule_weekdays'     => array(),
@@ -402,6 +411,7 @@ class BumpMint_Admin {
 		}
 		$timezone_name = wp_timezone()->getName();
 		$is_active     = BumpMint_Rules::STATUS_ACTIVE === $rule['status'];
+		$role_options  = $this->get_user_role_options( (array) $rule['customer_role_slugs'] );
 
 		$errors = get_settings_errors( 'bumpmint' );
 		?>
@@ -548,6 +558,52 @@ class BumpMint_Admin {
 									class="small-text"
 								/>
 								<p class="description"><?php esc_html_e( 'Cart subtotal excludes shipping, taxes, and products added by BumpMint. Quantity means total product units.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+					</table>
+				</div>
+
+				<div class="bumpmint-form-card">
+					<h2><?php esc_html_e( 'Customer targeting', 'bumpmint-order-bump-for-woocommerce' ); ?></h2>
+					<table class="form-table" role="presentation">
+						<tr>
+							<th scope="row"><label for="bumpmint-customer-audience"><?php esc_html_e( 'Who can see this offer?', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
+							<td>
+								<select id="bumpmint-customer-audience" name="bumpmint_rule[customer_audience]" aria-describedby="bumpmint-customer-audience-description">
+									<?php foreach ( BumpMint_Conditions::get_customer_audiences() as $audience_key => $audience_label ) : ?>
+										<option value="<?php echo esc_attr( $audience_key ); ?>" <?php selected( $rule['customer_audience'], $audience_key ); ?>>
+											<?php echo esc_html( $audience_label ); ?>
+										</option>
+									<?php endforeach; ?>
+								</select>
+								<p id="bumpmint-customer-audience-description" class="description"><?php esc_html_e( 'Customer targeting is combined with the display rule and availability schedule.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+						<tr class="bumpmint-customer-roles-row">
+							<th scope="row">
+								<label for="bumpmint-customer-roles"><?php esc_html_e( 'User roles', 'bumpmint-order-bump-for-woocommerce' ); ?></label>
+								<?php
+								echo wc_help_tip( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WooCommerce escapes help tip output.
+									__( 'A logged-in user can see the offer when they have at least one selected role. Roles registered by other plugins are included.', 'bumpmint-order-bump-for-woocommerce' )
+								);
+								?>
+							</th>
+							<td>
+								<select
+									id="bumpmint-customer-roles"
+									name="bumpmint_rule[customer_role_slugs][]"
+									class="wc-enhanced-select"
+									multiple="multiple"
+									data-placeholder="<?php esc_attr_e( 'Select user roles', 'bumpmint-order-bump-for-woocommerce' ); ?>"
+									style="width: 360px; max-width: 100%;"
+								>
+									<?php foreach ( $role_options as $role_slug => $role_label ) : ?>
+										<option value="<?php echo esc_attr( $role_slug ); ?>" <?php selected( in_array( $role_slug, (array) $rule['customer_role_slugs'], true ) ); ?>>
+											<?php echo esc_html( $role_label ); ?>
+										</option>
+									<?php endforeach; ?>
+								</select>
+								<p class="description"><?php esc_html_e( 'Select one or more roles. Matching any selected role makes the customer eligible.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
 							</td>
 						</tr>
 					</table>
@@ -986,6 +1042,81 @@ class BumpMint_Admin {
 		}
 
 		return $operator . ' ' . absint( $rule['condition_value'] );
+	}
+
+	/**
+	 * Returns a concise customer audience summary for the rules table.
+	 *
+	 * @param array $rule Rule data.
+	 * @return string
+	 */
+	private function get_customer_summary( array $rule ) {
+		$audience  = isset( $rule['customer_audience'] ) ? $rule['customer_audience'] : BumpMint_Conditions::AUDIENCE_EVERYONE;
+		$audiences = BumpMint_Conditions::get_customer_audiences();
+
+		if ( BumpMint_Conditions::AUDIENCE_EVERYONE === $audience ) {
+			return '';
+		}
+
+		if ( BumpMint_Conditions::AUDIENCE_ROLES !== $audience ) {
+			$audience_label = isset( $audiences[ $audience ] ) ? $audiences[ $audience ] : __( 'Unknown audience', 'bumpmint-order-bump-for-woocommerce' );
+
+			/* translators: %s: customer audience label. */
+			return sprintf( __( 'Customers: %s', 'bumpmint-order-bump-for-woocommerce' ), $audience_label );
+		}
+
+		$selected_roles = isset( $rule['customer_role_slugs'] ) ? (array) $rule['customer_role_slugs'] : array();
+		$role_options   = $this->get_user_role_options( $selected_roles );
+		$role_labels    = array();
+		foreach ( $selected_roles as $role_slug ) {
+			if ( isset( $role_options[ $role_slug ] ) ) {
+				$role_labels[] = $role_options[ $role_slug ];
+			}
+		}
+
+		if ( empty( $role_labels ) ) {
+			return __( 'Roles not found', 'bumpmint-order-bump-for-woocommerce' );
+		}
+
+		/* translators: %s: comma-separated user role labels. */
+		return wp_html_excerpt( sprintf( __( 'Roles: %s', 'bumpmint-order-bump-for-woocommerce' ), implode( ', ', $role_labels ) ), 100, '…' );
+	}
+
+	/**
+	 * Returns current WordPress roles plus selected roles that are unavailable.
+	 *
+	 * Temporarily unavailable custom roles remain visible so editing another
+	 * setting cannot silently discard targeting configured by an integration.
+	 *
+	 * @param array $selected_roles Selected role slugs.
+	 * @return array<string,string>
+	 */
+	private function get_user_role_options( array $selected_roles = array() ) {
+		$role_names = wp_roles()->get_names();
+		$options    = array();
+
+		foreach ( $role_names as $role_slug => $role_name ) {
+			$role_slug = sanitize_key( $role_slug );
+			if ( '' !== $role_slug ) {
+				$options[ $role_slug ] = translate_user_role( $role_name );
+			}
+		}
+
+		foreach ( $selected_roles as $role_slug ) {
+			$role_slug = is_scalar( $role_slug ) ? sanitize_key( (string) $role_slug ) : '';
+			if ( '' === $role_slug || isset( $options[ $role_slug ] ) ) {
+				continue;
+			}
+
+			$options[ $role_slug ] = sprintf(
+				/* translators: %s: unavailable WordPress user role slug. */
+				__( 'Unavailable role: %s', 'bumpmint-order-bump-for-woocommerce' ),
+				$role_slug
+			);
+		}
+
+		natcasesort( $options );
+		return $options;
 	}
 
 	/**

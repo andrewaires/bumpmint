@@ -204,6 +204,30 @@ class BumpMint_Rules {
 			$condition_match            = 'any';
 		}
 
+		$customer_audience = isset( $data['customer_audience'] ) && is_scalar( $data['customer_audience'] )
+			? sanitize_key( (string) $data['customer_audience'] )
+			: BumpMint_Conditions::AUDIENCE_EVERYONE;
+		if ( ! array_key_exists( $customer_audience, BumpMint_Conditions::get_customer_audiences() ) ) {
+			return new WP_Error(
+				'bumpmint_invalid_customer_audience',
+				__( 'Select a valid customer audience.', 'bumpmint-order-bump-for-woocommerce' )
+			);
+		}
+
+		$customer_role_slugs = isset( $data['customer_role_slugs'] )
+			? self::sanitize_role_slugs( $data['customer_role_slugs'] )
+			: array();
+		if ( BumpMint_Conditions::AUDIENCE_ROLES === $customer_audience ) {
+			if ( empty( $customer_role_slugs ) ) {
+				return new WP_Error(
+					'bumpmint_customer_role_required',
+					__( 'Select at least one user role.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+		} else {
+			$customer_role_slugs = array();
+		}
+
 		$schedule_type = isset( $data['schedule_type'] )
 			? sanitize_key( $data['schedule_type'] )
 			: BumpMint_Conditions::SCHEDULE_ALWAYS;
@@ -434,6 +458,8 @@ class BumpMint_Rules {
 			'condition_match'       => $condition_match,
 			'condition_operator'    => $condition_operator,
 			'condition_value'       => $condition_value,
+			'customer_audience'     => $customer_audience,
+			'customer_role_slugs'   => $customer_role_slugs,
 			'schedule_type'         => $schedule_type,
 			'schedule_dates'        => $schedule_dates,
 			'schedule_weekdays'     => $schedule_weekdays,
@@ -683,6 +709,24 @@ class BumpMint_Rules {
 		$condition_category_ids     = isset( $rule['condition_category_ids'] )
 			? self::sanitize_category_ids( $rule['condition_category_ids'] )
 			: array();
+		$customer_role_slugs = isset( $rule['customer_role_slugs'] )
+			? self::sanitize_role_slugs( $rule['customer_role_slugs'] )
+			: array();
+		$customer_audience   = BumpMint_Conditions::AUDIENCE_EVERYONE;
+		if ( array_key_exists( 'customer_audience', $rule ) ) {
+			$stored_customer_audience = is_scalar( $rule['customer_audience'] )
+				? sanitize_key( (string) $rule['customer_audience'] )
+				: '';
+			if ( array_key_exists( $stored_customer_audience, BumpMint_Conditions::get_customer_audiences() ) ) {
+				$customer_audience = $stored_customer_audience;
+			} else {
+				$customer_audience   = BumpMint_Conditions::AUDIENCE_ROLES;
+				$customer_role_slugs = array();
+			}
+		}
+		if ( BumpMint_Conditions::AUDIENCE_ROLES !== $customer_audience ) {
+			$customer_role_slugs = array();
+		}
 		$schedule_type = isset( $rule['schedule_type'] ) ? sanitize_key( $rule['schedule_type'] ) : BumpMint_Conditions::SCHEDULE_ALWAYS;
 		if ( ! in_array( $schedule_type, array( BumpMint_Conditions::SCHEDULE_ALWAYS, BumpMint_Conditions::SCHEDULE_DATES, BumpMint_Conditions::SCHEDULE_WEEKDAYS ), true ) ) {
 			$schedule_type = BumpMint_Conditions::SCHEDULE_ALWAYS;
@@ -735,6 +779,8 @@ class BumpMint_Rules {
 			'condition_match'       => 'any',
 			'condition_operator'    => 'greater_than',
 			'condition_value'       => '0',
+			'customer_audience'     => $customer_audience,
+			'customer_role_slugs'   => $customer_role_slugs,
 			'schedule_type'         => $schedule_type,
 			'schedule_dates'        => $schedule_dates,
 			'schedule_weekdays'     => $schedule_weekdays,
@@ -762,6 +808,8 @@ class BumpMint_Rules {
 			&& $condition_category_enabled
 			&& ! empty( $condition_category_ids );
 		$normalized['condition_category_ids'] = $normalized['condition_category_enabled'] ? $condition_category_ids : array();
+		$normalized['customer_audience']       = $customer_audience;
+		$normalized['customer_role_slugs']     = $customer_role_slugs;
 		$normalized['schedule_type']         = $schedule_type;
 		$normalized['schedule_dates']        = $schedule_dates;
 		$normalized['schedule_weekdays']     = $schedule_weekdays;
@@ -819,11 +867,18 @@ class BumpMint_Rules {
 			? self::sanitize_category_ids( $rule['condition_category_ids'] )
 			: array();
 		$bump_product_ids      = $rule['bump_product_ids'];
+		$customer_audience     = isset( $rule['customer_audience'] ) && is_scalar( $rule['customer_audience'] )
+			? sanitize_key( (string) $rule['customer_audience'] )
+			: BumpMint_Conditions::AUDIENCE_EVERYONE;
+		$customer_role_slugs   = isset( $rule['customer_role_slugs'] )
+			? self::sanitize_role_slugs( $rule['customer_role_slugs'] )
+			: array();
 		$schedule_dates        = isset( $rule['schedule_dates'] ) ? self::sanitize_schedule_dates( $rule['schedule_dates'] ) : array();
 		$schedule_weekdays     = isset( $rule['schedule_weekdays'] ) ? self::sanitize_schedule_weekdays( $rule['schedule_weekdays'] ) : array();
 		sort( $condition_product_ids, SORT_NUMERIC );
 		sort( $condition_category_ids, SORT_NUMERIC );
 		sort( $bump_product_ids, SORT_NUMERIC );
+		sort( $customer_role_slugs, SORT_STRING );
 		sort( $schedule_dates, SORT_STRING );
 		sort( $schedule_weekdays, SORT_NUMERIC );
 
@@ -837,6 +892,8 @@ class BumpMint_Rules {
 					$rule['condition_match'],
 					$rule['condition_operator'],
 					$rule['condition_value'],
+					$customer_audience,
+					$customer_role_slugs,
 					isset( $rule['schedule_type'] ) ? $rule['schedule_type'] : BumpMint_Conditions::SCHEDULE_ALWAYS,
 					$schedule_dates,
 					$schedule_weekdays,
@@ -862,6 +919,33 @@ class BumpMint_Rules {
 		$product_ids = array_filter( $product_ids );
 
 		return array_values( array_unique( $product_ids ) );
+	}
+
+	/**
+	 * Sanitizes WordPress role slugs while preserving temporarily unavailable roles.
+	 *
+	 * @param mixed $role_slugs Role slug or list of role slugs.
+	 * @return array
+	 */
+	private static function sanitize_role_slugs( $role_slugs ) {
+		$role_slugs = is_array( $role_slugs ) ? $role_slugs : array( $role_slugs );
+		$sanitized  = array();
+
+		foreach ( $role_slugs as $role_slug ) {
+			if ( ! is_scalar( $role_slug ) ) {
+				continue;
+			}
+
+			$role_slug = sanitize_key( (string) $role_slug );
+			if ( '' !== $role_slug ) {
+				$sanitized[] = $role_slug;
+			}
+		}
+
+		$sanitized = array_values( array_unique( $sanitized ) );
+		sort( $sanitized, SORT_STRING );
+
+		return $sanitized;
 	}
 
 	/**

@@ -23,6 +23,11 @@ class BumpMint_Conditions {
 	const SCHEDULE_DATES    = 'dates';
 	const SCHEDULE_WEEKDAYS = 'weekdays';
 
+	const AUDIENCE_EVERYONE   = 'everyone';
+	const AUDIENCE_LOGGED_IN  = 'logged_in';
+	const AUDIENCE_LOGGED_OUT = 'logged_out';
+	const AUDIENCE_ROLES      = 'roles';
+
 	/**
 	 * Returns all registered condition definitions.
 	 *
@@ -83,6 +88,20 @@ class BumpMint_Conditions {
 	}
 
 	/**
+	 * Returns the supported customer audience labels.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function get_customer_audiences() {
+		return array(
+			self::AUDIENCE_EVERYONE   => __( 'Everyone', 'bumpmint-order-bump-for-woocommerce' ),
+			self::AUDIENCE_LOGGED_IN  => __( 'Logged-in users', 'bumpmint-order-bump-for-woocommerce' ),
+			self::AUDIENCE_LOGGED_OUT => __( 'Logged-out visitors', 'bumpmint-order-bump-for-woocommerce' ),
+			self::AUDIENCE_ROLES      => __( 'Specific user roles', 'bumpmint-order-bump-for-woocommerce' ),
+		);
+	}
+
+	/**
 	 * Evaluates a rule against the current cart.
 	 *
 	 * @param array        $rule Rule data.
@@ -92,6 +111,10 @@ class BumpMint_Conditions {
 	public static function matches( array $rule, $cart = null ) {
 		$cart = $cart ? $cart : ( function_exists( 'WC' ) ? WC()->cart : null );
 		if ( ! $cart ) {
+			return false;
+		}
+
+		if ( ! self::matches_customer( $rule ) ) {
 			return false;
 		}
 
@@ -107,6 +130,73 @@ class BumpMint_Conditions {
 		}
 
 		return (bool) call_user_func( $definition['evaluator'], $rule, $cart );
+	}
+
+	/**
+	 * Evaluates login state and WordPress role targeting.
+	 *
+	 * A user with any selected role matches a role-targeted rule. The current
+	 * WordPress user object is request-cached, so this adds no order-history or
+	 * catalog query to checkout evaluation.
+	 *
+	 * @param array        $rule Rule data.
+	 * @param WP_User|null $user Optional user for deterministic tests.
+	 * @return bool
+	 */
+	public static function matches_customer( array $rule, $user = null ) {
+		$audience = isset( $rule['customer_audience'] ) && is_scalar( $rule['customer_audience'] )
+			? sanitize_key( (string) $rule['customer_audience'] )
+			: self::AUDIENCE_EVERYONE;
+
+		if ( self::AUDIENCE_EVERYONE === $audience ) {
+			return true;
+		}
+
+		$user         = $user instanceof WP_User ? $user : wp_get_current_user();
+		$is_logged_in = $user instanceof WP_User && $user->exists();
+
+		if ( self::AUDIENCE_LOGGED_IN === $audience ) {
+			return $is_logged_in;
+		}
+
+		if ( self::AUDIENCE_LOGGED_OUT === $audience ) {
+			return ! $is_logged_in;
+		}
+
+		if ( self::AUDIENCE_ROLES !== $audience || ! $is_logged_in ) {
+			return false;
+		}
+
+		$selected_roles = isset( $rule['customer_role_slugs'] )
+			? self::sanitize_role_slugs( $rule['customer_role_slugs'] )
+			: array();
+		$user_roles     = self::sanitize_role_slugs( $user->roles );
+
+		return ! empty( $selected_roles ) && ! empty( array_intersect( $selected_roles, $user_roles ) );
+	}
+
+	/**
+	 * Sanitizes one role slug list for runtime comparison.
+	 *
+	 * @param mixed $role_slugs Role slug or list of role slugs.
+	 * @return array
+	 */
+	private static function sanitize_role_slugs( $role_slugs ) {
+		$role_slugs = is_array( $role_slugs ) ? $role_slugs : array( $role_slugs );
+		$sanitized  = array();
+
+		foreach ( $role_slugs as $role_slug ) {
+			if ( ! is_scalar( $role_slug ) ) {
+				continue;
+			}
+
+			$role_slug = sanitize_key( (string) $role_slug );
+			if ( '' !== $role_slug ) {
+				$sanitized[] = $role_slug;
+			}
+		}
+
+		return array_values( array_unique( $sanitized ) );
 	}
 
 	/**

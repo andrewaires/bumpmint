@@ -1473,6 +1473,20 @@ class BumpMint_Checkout {
 	 * @return string
 	 */
 	private function get_condition_requirement_message( array $rule ) {
+		if ( ! BumpMint_Conditions::matches_customer( $rule ) ) {
+			$audience = isset( $rule['customer_audience'] ) ? $rule['customer_audience'] : BumpMint_Conditions::AUDIENCE_EVERYONE;
+
+			if ( BumpMint_Conditions::AUDIENCE_LOGGED_IN === $audience ) {
+				return __( 'Log in to qualify for this offer.', 'bumpmint-order-bump-for-woocommerce' );
+			}
+
+			if ( BumpMint_Conditions::AUDIENCE_LOGGED_OUT === $audience ) {
+				return __( 'This offer is available only to logged-out visitors.', 'bumpmint-order-bump-for-woocommerce' );
+			}
+
+			return __( 'Your account does not have a required user role for this offer.', 'bumpmint-order-bump-for-woocommerce' );
+		}
+
 		if ( ! BumpMint_Conditions::matches_schedule( $rule ) ) {
 			return __( 'This offer is currently outside its scheduled date or time.', 'bumpmint-order-bump-for-woocommerce' );
 		}
