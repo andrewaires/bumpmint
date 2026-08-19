@@ -588,7 +588,7 @@ class BumpMint_Checkout {
 
 		$rule    = BumpMint_Rules::get_rule( $rule_id );
 		$product = wc_get_product( $product_id );
-		if ( ! $rule || 'active' !== $rule['status'] || ! $product ) {
+		if ( ! $rule || BumpMint_Rules::STATUS_ACTIVE !== $rule['status'] || ! $product ) {
 			return new WP_Error(
 				'bumpmint_native_offer_unavailable',
 				__( 'This order bump is no longer available.', 'bumpmint-order-bump-for-woocommerce' ),
@@ -738,7 +738,7 @@ class BumpMint_Checkout {
 		}
 
 		foreach ( BumpMint_Rules::get_rules() as $rule ) {
-			if ( 'active' !== $rule['status'] || ( null !== $position_key && $position_key !== $rule['position'] ) ) {
+			if ( BumpMint_Rules::STATUS_ACTIVE !== $rule['status'] || ( null !== $position_key && $position_key !== $rule['position'] ) ) {
 				continue;
 			}
 
@@ -978,7 +978,7 @@ class BumpMint_Checkout {
 		$add        = (bool) $add;
 		$rule       = $rule_id ? BumpMint_Rules::get_rule( $rule_id ) : null;
 
-		if ( ! $rule || 'active' !== $rule['status'] ) {
+		if ( ! $rule || BumpMint_Rules::STATUS_ACTIVE !== $rule['status'] ) {
 			return new WP_Error( 'bumpmint_offer_unavailable', __( 'This offer is no longer available.', 'bumpmint-order-bump-for-woocommerce' ), 404 );
 		}
 
@@ -1194,7 +1194,7 @@ class BumpMint_Checkout {
 					$canonical_product = $product_id ? wc_get_product( $product_id ) : false;
 
 					if ( $rule && ! array_key_exists( $rule_id, $rule_eligibility ) ) {
-						$rule_eligibility[ $rule_id ] = 'active' === $rule['status'] && BumpMint_Conditions::matches( $rule, $cart );
+						$rule_eligibility[ $rule_id ] = BumpMint_Rules::STATUS_ACTIVE === $rule['status'] && BumpMint_Conditions::matches( $rule, $cart );
 					}
 
 					$is_eligible = $rule
@@ -1245,7 +1245,7 @@ class BumpMint_Checkout {
 				$canonical_product = wc_get_product( $cart_product_id );
 
 				if ( $rule && ! array_key_exists( $rule_id, $rule_eligibility ) ) {
-					$rule_eligibility[ $rule_id ] = 'active' === $rule['status'] && BumpMint_Conditions::matches( $rule, $cart );
+					$rule_eligibility[ $rule_id ] = BumpMint_Rules::STATUS_ACTIVE === $rule['status'] && BumpMint_Conditions::matches( $rule, $cart );
 				}
 
 				$is_eligible = $rule
@@ -1446,7 +1446,7 @@ class BumpMint_Checkout {
 
 		if (
 			is_array( $rule )
-			&& 'active' === $rule['status']
+			&& BumpMint_Rules::STATUS_ACTIVE === $rule['status']
 			&& in_array( $product_id, $rule['bump_product_ids'], true )
 		) {
 			$requirement = $this->get_condition_requirement_message( $rule );
@@ -1712,7 +1712,7 @@ class BumpMint_Checkout {
 	 */
 	private function has_discount_quantity_limit( $rule, $product_id ) {
 		return is_array( $rule )
-			&& 'active' === $rule['status']
+			&& BumpMint_Rules::STATUS_ACTIVE === $rule['status']
 			&& ! empty( $rule['discount_enabled'] )
 			&& in_array( (int) $product_id, $rule['bump_product_ids'], true );
 	}

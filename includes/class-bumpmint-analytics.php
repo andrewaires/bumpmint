@@ -190,7 +190,7 @@ class BumpMint_Analytics {
 		$recorded = 0;
 		foreach ( $rule_ids as $rule_id ) {
 			$rule = BumpMint_Rules::get_rule( $rule_id );
-			if ( ! $rule || 'active' !== $rule['status'] || ! BumpMint_Conditions::matches( $rule, WC()->cart ) ) {
+			if ( ! $rule || BumpMint_Rules::STATUS_ACTIVE !== $rule['status'] || ! BumpMint_Conditions::matches( $rule, WC()->cart ) ) {
 				continue;
 			}
 

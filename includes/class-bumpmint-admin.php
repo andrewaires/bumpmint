@@ -10,7 +10,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Handles rule listing, creation, editing, and deletion.
+ * Handles rule listing, creation, editing, status changes, and deletion.
  */
 class BumpMint_Admin {
 
@@ -100,11 +100,32 @@ class BumpMint_Admin {
 	}
 
 	/**
-	 * Handles save and delete requests before output begins.
+	 * Handles save, status, and delete requests before output begins.
 	 */
 	public function handle_actions() {
 		if ( ! $this->is_plugin_page() || ! current_user_can( self::CAPABILITY ) ) {
 			return;
+		}
+
+		if ( isset( $_POST['bumpmint_toggle_status'] ) ) {
+			$rule_id = isset( $_POST['bumpmint_rule_id'] ) && is_scalar( $_POST['bumpmint_rule_id'] )
+				? sanitize_text_field( wp_unslash( $_POST['bumpmint_rule_id'] ) )
+				: '';
+			$status  = isset( $_POST['bumpmint_rule_status'] ) && is_scalar( $_POST['bumpmint_rule_status'] )
+				? sanitize_key( wp_unslash( $_POST['bumpmint_rule_status'] ) )
+				: '';
+
+			check_admin_referer( 'bumpmint_toggle_rule_' . $rule_id, 'bumpmint_nonce_status' );
+			$result = BumpMint_Rules::set_status( $rule_id, $status );
+
+			wp_safe_redirect(
+				add_query_arg(
+					'bumpmint_status',
+					is_wp_error( $result ) ? 'error' : $result['status'],
+					admin_url( 'admin.php?page=' . self::PAGE_SLUG )
+				)
+			);
+			exit;
 		}
 
 		if (
@@ -190,7 +211,10 @@ class BumpMint_Admin {
 	 * Displays the modern, WordPress-native rules table.
 	 */
 	private function render_list_page() {
-		$rules = BumpMint_Rules::get_rules();
+		$rules         = BumpMint_Rules::get_rules();
+		$status_notice = isset( $_GET['bumpmint_status'] ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only status notice.
+			? sanitize_key( wp_unslash( $_GET['bumpmint_status'] ) ) // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only status notice.
+			: '';
 		?>
 		<div class="wrap bumpmint-admin-wrap">
 			<?php $this->render_page_header( __( 'Order Bumps', 'bumpmint-order-bump-for-woocommerce' ), true ); ?>
@@ -201,6 +225,13 @@ class BumpMint_Admin {
 			<?php endif; ?>
 			<?php if ( isset( $_GET['bumpmint_deleted'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only success flag. ?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Order bump deleted.', 'bumpmint-order-bump-for-woocommerce' ); ?></p></div>
+			<?php endif; ?>
+			<?php if ( BumpMint_Rules::STATUS_ACTIVE === $status_notice ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Order bump activated.', 'bumpmint-order-bump-for-woocommerce' ); ?></p></div>
+			<?php elseif ( BumpMint_Rules::STATUS_INACTIVE === $status_notice ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Order bump deactivated.', 'bumpmint-order-bump-for-woocommerce' ); ?></p></div>
+			<?php elseif ( 'error' === $status_notice ) : ?>
+				<div class="notice notice-error is-dismissible"><p><?php esc_html_e( 'The order bump status could not be updated.', 'bumpmint-order-bump-for-woocommerce' ); ?></p></div>
 			<?php endif; ?>
 
 			<?php if ( empty( $rules ) ) : ?>
@@ -246,6 +277,8 @@ class BumpMint_Admin {
 	private function render_rule_row( array $rule ) {
 		$products         = $this->get_products( $rule['bump_product_ids'] );
 		$schedule_summary = $this->get_schedule_summary( $rule );
+		$is_active         = BumpMint_Rules::STATUS_ACTIVE === $rule['status'];
+		$next_status       = $is_active ? BumpMint_Rules::STATUS_INACTIVE : BumpMint_Rules::STATUS_ACTIVE;
 		$edit_url         = admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&action=edit&rule=' . rawurlencode( $rule['id'] ) );
 		$delete_url       = wp_nonce_url(
 			admin_url( 'admin.php?page=' . self::PAGE_SLUG . '&action=delete&rule=' . rawurlencode( $rule['id'] ) ),
@@ -257,6 +290,8 @@ class BumpMint_Admin {
 		$date       = ! empty( $rule['created_at'] )
 			? get_date_from_gmt( $rule['created_at'], get_option( 'date_format' ) )
 			: '—';
+		/* translators: %s: internal order bump name. */
+		$status_aria_label = sprintf( __( 'Status for %s', 'bumpmint-order-bump-for-woocommerce' ), $full_name );
 		?>
 		<tr>
 			<td class="column-actions" data-colname="<?php esc_attr_e( 'Actions', 'bumpmint-order-bump-for-woocommerce' ); ?>">
@@ -282,8 +317,24 @@ class BumpMint_Admin {
 				<?php endif; ?>
 			</td>
 			<td class="column-status" data-colname="<?php esc_attr_e( 'Status', 'bumpmint-order-bump-for-woocommerce' ); ?>">
-				<span class="bumpmint-status-dot" aria-hidden="true"></span>
-				<?php esc_html_e( 'Active', 'bumpmint-order-bump-for-woocommerce' ); ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=' . self::PAGE_SLUG ) ); ?>" class="bumpmint-status-form">
+					<?php wp_nonce_field( 'bumpmint_toggle_rule_' . $rule['id'], 'bumpmint_nonce_status', false ); ?>
+					<input type="hidden" name="bumpmint_rule_id" value="<?php echo esc_attr( $rule['id'] ); ?>" />
+					<input type="hidden" name="bumpmint_rule_status" value="<?php echo esc_attr( $next_status ); ?>" />
+					<button
+						type="submit"
+						name="bumpmint_toggle_status"
+						value="1"
+						class="bumpmint-switch-button"
+						role="switch"
+						aria-checked="<?php echo esc_attr( $is_active ? 'true' : 'false' ); ?>"
+						aria-label="<?php echo esc_attr( $status_aria_label ); ?>"
+						title="<?php echo esc_attr( $is_active ? __( 'Deactivate order bump', 'bumpmint-order-bump-for-woocommerce' ) : __( 'Activate order bump', 'bumpmint-order-bump-for-woocommerce' ) ); ?>"
+					>
+						<span class="bumpmint-switch-control" aria-hidden="true"></span>
+						<span><?php echo esc_html( $is_active ? __( 'Active', 'bumpmint-order-bump-for-woocommerce' ) : __( 'Inactive', 'bumpmint-order-bump-for-woocommerce' ) ); ?></span>
+					</button>
+				</form>
 			</td>
 			<td class="column-price" data-colname="<?php esc_attr_e( 'Price', 'bumpmint-order-bump-for-woocommerce' ); ?>">
 				<?php echo wp_kses_post( $this->get_products_price_html( $rule, $products ) ); ?>
@@ -331,7 +382,7 @@ class BumpMint_Admin {
 			'offer_title'           => '',
 			'description'           => '',
 			'image_id'              => 0,
-			'status'                => 'active',
+			'status'                => BumpMint_Rules::STATUS_ACTIVE,
 		);
 
 		$rule = array();
@@ -350,6 +401,7 @@ class BumpMint_Admin {
 			$schedule_dates = array( '' );
 		}
 		$timezone_name = wp_timezone()->getName();
+		$is_active     = BumpMint_Rules::STATUS_ACTIVE === $rule['status'];
 
 		$errors = get_settings_errors( 'bumpmint' );
 		?>
@@ -390,7 +442,25 @@ class BumpMint_Admin {
 						</tr>
 						<tr>
 							<th scope="row"><?php esc_html_e( 'Status', 'bumpmint-order-bump-for-woocommerce' ); ?></th>
-							<td><span class="bumpmint-status-dot" aria-hidden="true"></span><?php esc_html_e( 'Active', 'bumpmint-order-bump-for-woocommerce' ); ?></td>
+							<td>
+								<input type="hidden" name="bumpmint_rule[status]" value="<?php echo esc_attr( BumpMint_Rules::STATUS_INACTIVE ); ?>" />
+								<label class="bumpmint-switch" for="bumpmint-status">
+									<input
+										type="checkbox"
+										id="bumpmint-status"
+										name="bumpmint_rule[status]"
+										value="<?php echo esc_attr( BumpMint_Rules::STATUS_ACTIVE ); ?>"
+										class="bumpmint-switch-input"
+										role="switch"
+										aria-describedby="bumpmint-status-description"
+										<?php checked( $is_active ); ?>
+									/>
+									<span class="bumpmint-switch-control" aria-hidden="true"></span>
+									<span class="bumpmint-switch-label bumpmint-switch-label-active"><?php esc_html_e( 'Active', 'bumpmint-order-bump-for-woocommerce' ); ?></span>
+									<span class="bumpmint-switch-label bumpmint-switch-label-inactive"><?php esc_html_e( 'Inactive', 'bumpmint-order-bump-for-woocommerce' ); ?></span>
+								</label>
+								<p id="bumpmint-status-description" class="description"><?php esc_html_e( 'Inactive order bumps are not displayed at checkout, but their settings and Analytics history are preserved.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</td>
 						</tr>
 					</table>
 				</div>

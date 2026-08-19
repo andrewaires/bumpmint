@@ -17,6 +17,8 @@ class BumpMint_Rules {
 	const NAME_MAX_LENGTH    = 120;
 	const BADGE_MAX_LENGTH   = 60;
 	const MAX_SCHEDULE_DATES = 366;
+	const STATUS_ACTIVE      = 'active';
+	const STATUS_INACTIVE    = 'inactive';
 
 	/**
 	 * Returns all saved rules and migrates legacy data when necessary.
@@ -82,6 +84,18 @@ class BumpMint_Rules {
 			return new WP_Error(
 				'bumpmint_rule_not_found',
 				__( 'The order bump you tried to edit no longer exists.', 'bumpmint-order-bump-for-woocommerce' )
+			);
+		}
+
+		if ( isset( $data['status'] ) ) {
+			$status = is_scalar( $data['status'] ) ? sanitize_key( (string) $data['status'] ) : '';
+		} else {
+			$status = $existing_rule ? $existing_rule['status'] : self::STATUS_ACTIVE;
+		}
+		if ( ! self::is_valid_status( $status ) ) {
+			return new WP_Error(
+				'bumpmint_invalid_status',
+				__( 'Select a valid order bump status.', 'bumpmint-order-bump-for-woocommerce' )
 			);
 		}
 
@@ -437,7 +451,7 @@ class BumpMint_Rules {
 			'offer_title'           => isset( $data['offer_title'] ) ? sanitize_text_field( $data['offer_title'] ) : '',
 			'description'           => isset( $data['description'] ) ? sanitize_textarea_field( $data['description'] ) : '',
 			'image_id'              => isset( $data['image_id'] ) ? absint( $data['image_id'] ) : 0,
-			'status'                => 'active',
+			'status'                => $status,
 			'created_at'            => $existing_rule && ! empty( $existing_rule['created_at'] )
 				? $existing_rule['created_at']
 				: current_time( 'mysql', true ),
@@ -473,6 +487,38 @@ class BumpMint_Rules {
 
 		update_option( BUMPMINT_OPTION_KEY, $rules, false );
 		return $sanitized;
+	}
+
+	/**
+	 * Changes only the active state of an existing rule.
+	 *
+	 * @param string $id     Rule ID.
+	 * @param string $status New rule status.
+	 * @return array|WP_Error
+	 */
+	public static function set_status( $id, $status ) {
+		$id     = is_scalar( $id ) ? sanitize_text_field( (string) $id ) : '';
+		$status = is_scalar( $status ) ? sanitize_key( (string) $status ) : '';
+		if ( ! self::is_valid_status( $status ) ) {
+			return new WP_Error(
+				'bumpmint_invalid_status',
+				__( 'Select a valid order bump status.', 'bumpmint-order-bump-for-woocommerce' )
+			);
+		}
+
+		$rules = self::get_rules();
+		foreach ( $rules as $index => $rule ) {
+			if ( isset( $rule['id'] ) && hash_equals( (string) $rule['id'], (string) $id ) ) {
+				$rules[ $index ]['status'] = $status;
+				update_option( BUMPMINT_OPTION_KEY, $rules, false );
+				return $rules[ $index ];
+			}
+		}
+
+		return new WP_Error(
+			'bumpmint_rule_not_found',
+			__( 'The order bump you tried to update no longer exists.', 'bumpmint-order-bump-for-woocommerce' )
+		);
 	}
 
 	/**
@@ -611,6 +657,14 @@ class BumpMint_Rules {
 	 * @return array
 	 */
 	private static function normalize_rule( array $rule ) {
+		$status = self::STATUS_ACTIVE;
+		if ( array_key_exists( 'status', $rule ) ) {
+			$status = is_scalar( $rule['status'] ) ? sanitize_key( (string) $rule['status'] ) : '';
+			if ( ! self::is_valid_status( $status ) ) {
+				$status = self::STATUS_INACTIVE;
+			}
+		}
+
 		$condition_product_ids = isset( $rule['condition_product_ids'] )
 			? self::sanitize_product_ids( $rule['condition_product_ids'] )
 			: self::sanitize_product_ids(
@@ -698,7 +752,7 @@ class BumpMint_Rules {
 			'offer_title'           => isset( $rule['titulo'] ) ? sanitize_text_field( $rule['titulo'] ) : '',
 			'description'           => isset( $rule['descricao'] ) ? sanitize_textarea_field( $rule['descricao'] ) : '',
 			'image_id'              => isset( $rule['imagem_id'] ) ? absint( $rule['imagem_id'] ) : 0,
-			'status'                => 'active',
+			'status'                => $status,
 			'created_at'            => current_time( 'mysql', true ),
 		);
 
@@ -717,6 +771,7 @@ class BumpMint_Rules {
 		$normalized['bump_product_ids']      = $bump_product_ids;
 		$normalized['hide_if_in_cart']       = ! empty( $normalized['hide_if_in_cart'] );
 		$normalized['max_quantity']          = max( 1, absint( $normalized['max_quantity'] ) );
+		$normalized['status']                = $status;
 		$normalized['condition_match']       = in_array( $normalized['condition_match'], array( 'any', 'all' ), true )
 			? $normalized['condition_match']
 			: 'any';
@@ -740,6 +795,16 @@ class BumpMint_Rules {
 		);
 
 		return $normalized;
+	}
+
+	/**
+	 * Checks whether a rule status is supported.
+	 *
+	 * @param string $status Rule status.
+	 * @return bool
+	 */
+	private static function is_valid_status( $status ) {
+		return in_array( $status, array( self::STATUS_ACTIVE, self::STATUS_INACTIVE ), true );
 	}
 
 	/**
