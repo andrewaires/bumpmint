@@ -73,11 +73,29 @@ Conversions follow the current WooCommerce paid status, normally **Processing** 
 
 Analytics data stays in the WordPress database. BumpMint does not store customer names, email addresses, IP addresses, or user-agent strings in its report tables and does not send report data to third parties. Administrators can reset reports without deleting products, rules, or WooCommerce orders.
 
-### Start in three steps
+### Complete Feature Overview
 
-1. Create an order bump and choose the products to offer.
-2. Select the targeting rule, schedule, checkout position, and optional discount.
-3. Customize the presentation, save the campaign, and track its results.
+* **Multiple order bumps:** Manage multiple checkout campaigns from WordPress.
+* **Multiple offers:** Add independently selectable products to one campaign.
+* **Product and variation targeting:** Match any or all selected items.
+* **Category targeting:** Match categories, child categories, or category-only rules.
+* **Cart rules:** Target subtotal, item quantity, or every eligible checkout.
+* **Availability scheduling:** Choose dates, weekdays, and an optional time range.
+* **Flexible pricing:** Keep regular pricing or apply fixed and percentage discounts.
+* **Quantity limits:** Cap discounted units for each offered product.
+* **In-cart controls:** Hide an offered product already present in the cart.
+* **Classic checkout positions:** Choose four offer placements.
+* **Checkout Blocks:** Display offers below the block order summary.
+* **WooCommerce Bookings:** Use the native form for supported bookable products.
+* **Custom presentation:** Edit the banner, image, title, description, and placeholders.
+* **Server-side safeguards:** Validate eligibility, products, stock, quantities, and prices.
+* **Cart synchronization:** Remove only BumpMint lines that lose eligibility.
+* **Local Analytics:** Track views, conversions, conversion rate, revenue, and top bumps.
+* **Report filters:** Compare results by date, weekday, hour, bump, and currency.
+* **WooCommerce reconciliation:** Follow payment, cancellation, and refund status.
+* **Private report data:** Store reports locally and reset them without deleting store records.
+* **WooCommerce compatibility:** Support HPOS and compatible classic-checkout widgets.
+* **Lightweight responsive assets:** Load focused CSS and JavaScript only where needed.
 
 ### Compatibility
 
