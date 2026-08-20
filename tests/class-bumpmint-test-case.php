@@ -31,6 +31,7 @@ abstract class BumpMint_Test_Case extends WP_UnitTestCase {
 		update_option( 'woocommerce_price_num_decimals', '2' );
 		update_option( 'woocommerce_prices_include_tax', 'no' );
 		update_option( 'woocommerce_tax_display_cart', 'excl' );
+		update_option( 'woocommerce_enable_coupons', 'yes' );
 
 		WC()->session = new WC_Session_Handler();
 		WC()->session->init();
@@ -97,6 +98,24 @@ abstract class BumpMint_Test_Case extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Creates a published WooCommerce coupon.
+	 *
+	 * @param string $code   Coupon code.
+	 * @param float  $amount Fixed cart discount amount.
+	 * @return WC_Coupon
+	 */
+	protected function create_coupon( $code, $amount = 5 ) {
+		$coupon = new WC_Coupon();
+		$coupon->set_code( $code );
+		$coupon->set_status( 'publish' );
+		$coupon->set_discount_type( 'fixed_cart' );
+		$coupon->set_amount( (string) $amount );
+		$coupon->save();
+
+		return $coupon;
+	}
+
+	/**
 	 * Saves a complete valid rule and returns its normalized representation.
 	 *
 	 * @param WC_Product $offer_product Offered product.
@@ -122,6 +141,8 @@ abstract class BumpMint_Test_Case extends WP_UnitTestCase {
 				'location_unknown_behavior' => BumpMint_Conditions::LOCATION_UNKNOWN_HIDE,
 				'location_country_codes' => array(),
 				'location_state_codes'  => array(),
+				'coupon_mode'            => BumpMint_Conditions::COUPON_NONE,
+				'coupon_ids'             => array(),
 				'schedule_type'         => BumpMint_Conditions::SCHEDULE_ALWAYS,
 				'schedule_dates'        => array(),
 				'schedule_weekdays'     => array(),

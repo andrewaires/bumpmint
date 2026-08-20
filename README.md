@@ -12,7 +12,7 @@ Present relevant products while customers are ready to complete their purchase. 
 
 ### Why BumpMint
 
-- Target products, variations, categories, cart subtotal, item quantity, customer audiences, or locations.
+- Target products, variations, categories, cart subtotal, item quantity, customer audiences, locations, or applied coupons.
 - Offer multiple independently selectable products with fixed or percentage discounts.
 - Schedule campaigns for dates, recurring weekdays, and optional time ranges.
 - Limit discounted quantities and hide products already present in the cart.
@@ -72,6 +72,8 @@ Product rules can match any or all selected products and variations. Category tr
 
 Customer targeting can include everyone, logged-in users, logged-out visitors, or selected WordPress roles. Location targeting uses WooCommerce's current shipping country and region, with billing as a fallback. Select whole countries or narrow individual countries to states or regions, and choose whether an offer remains hidden or visible while the location is unknown.
 
+Coupon targeting can require any valid coupon currently applied to the cart or any one of the selected published WooCommerce coupons. This requirement combines with the cart, customer, location, and schedule settings, while coupon discount compatibility continues to follow WooCommerce rules.
+
 Every campaign can run daily, on selected dates, or on recurring weekdays. An optional time range uses the WordPress site timezone and can continue past midnight.
 
 ### Offers and pricing you control
@@ -96,6 +98,7 @@ Report data remains in the WordPress database. BumpMint does not store names, em
 - **Campaign status:** Activate or deactivate an order bump without deleting its settings.
 - **Customer targeting:** Show offers to everyone, logged-in users, logged-out visitors, or selected roles.
 - **Location targeting:** Include or exclude countries and optional states or regions.
+- **Coupon targeting:** Require any applied coupon or one of the selected WooCommerce coupons.
 - **Multiple offers:** Add independently selectable products to one campaign.
 - **Product and variation targeting:** Match any or all selected items.
 - **Category targeting:** Match categories, child categories, or category-only rules.

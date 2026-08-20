@@ -294,6 +294,39 @@ class BumpMint_Rules {
 			$location_state_codes      = array();
 		}
 
+		$coupon_mode = isset( $data['coupon_mode'] ) && is_scalar( $data['coupon_mode'] )
+			? sanitize_key( (string) $data['coupon_mode'] )
+			: BumpMint_Conditions::COUPON_NONE;
+		if ( ! array_key_exists( $coupon_mode, BumpMint_Conditions::get_coupon_modes() ) ) {
+			return new WP_Error(
+				'bumpmint_invalid_coupon_mode',
+				__( 'Select a valid coupon targeting option.', 'bumpmint-order-bump-for-woocommerce' )
+			);
+		}
+
+		$coupon_ids = isset( $data['coupon_ids'] )
+			? self::sanitize_coupon_ids( $data['coupon_ids'] )
+			: array();
+		if ( BumpMint_Conditions::COUPON_SPECIFIC === $coupon_mode ) {
+			if ( empty( $coupon_ids ) ) {
+				return new WP_Error(
+					'bumpmint_coupon_required',
+					__( 'Select at least one coupon.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+
+			foreach ( $coupon_ids as $coupon_id ) {
+				if ( 'shop_coupon' !== get_post_type( $coupon_id ) || 'publish' !== get_post_status( $coupon_id ) ) {
+					return new WP_Error(
+						'bumpmint_invalid_coupon',
+						__( 'One or more selected coupons are unavailable.', 'bumpmint-order-bump-for-woocommerce' )
+					);
+				}
+			}
+		} else {
+			$coupon_ids = array();
+		}
+
 		$schedule_type = isset( $data['schedule_type'] )
 			? sanitize_key( $data['schedule_type'] )
 			: BumpMint_Conditions::SCHEDULE_ALWAYS;
@@ -531,6 +564,8 @@ class BumpMint_Rules {
 			'location_unknown_behavior' => $location_unknown_behavior,
 			'location_country_codes' => $location_country_codes,
 			'location_state_codes'   => $location_state_codes,
+			'coupon_mode'            => $coupon_mode,
+			'coupon_ids'             => $coupon_ids,
 			'schedule_type'         => $schedule_type,
 			'schedule_dates'        => $schedule_dates,
 			'schedule_weekdays'     => $schedule_weekdays,
@@ -854,6 +889,25 @@ class BumpMint_Rules {
 			$location_state_codes   = array();
 		}
 
+		$coupon_ids  = isset( $rule['coupon_ids'] )
+			? self::sanitize_coupon_ids( $rule['coupon_ids'] )
+			: array();
+		$coupon_mode = BumpMint_Conditions::COUPON_NONE;
+		if ( array_key_exists( 'coupon_mode', $rule ) ) {
+			$stored_coupon_mode = is_scalar( $rule['coupon_mode'] )
+				? sanitize_key( (string) $rule['coupon_mode'] )
+				: '';
+			if ( array_key_exists( $stored_coupon_mode, BumpMint_Conditions::get_coupon_modes() ) ) {
+				$coupon_mode = $stored_coupon_mode;
+			} else {
+				$coupon_mode = BumpMint_Conditions::COUPON_SPECIFIC;
+				$coupon_ids  = array();
+			}
+		}
+		if ( BumpMint_Conditions::COUPON_SPECIFIC !== $coupon_mode ) {
+			$coupon_ids = array();
+		}
+
 		$schedule_type = isset( $rule['schedule_type'] ) ? sanitize_key( $rule['schedule_type'] ) : BumpMint_Conditions::SCHEDULE_ALWAYS;
 		if ( ! in_array( $schedule_type, array( BumpMint_Conditions::SCHEDULE_ALWAYS, BumpMint_Conditions::SCHEDULE_DATES, BumpMint_Conditions::SCHEDULE_WEEKDAYS ), true ) ) {
 			$schedule_type = BumpMint_Conditions::SCHEDULE_ALWAYS;
@@ -913,6 +967,8 @@ class BumpMint_Rules {
 			'location_unknown_behavior' => $location_unknown_behavior,
 			'location_country_codes' => $location_country_codes,
 			'location_state_codes'   => $location_state_codes,
+			'coupon_mode'            => $coupon_mode,
+			'coupon_ids'             => $coupon_ids,
 			'schedule_type'         => $schedule_type,
 			'schedule_dates'        => $schedule_dates,
 			'schedule_weekdays'     => $schedule_weekdays,
@@ -947,6 +1003,8 @@ class BumpMint_Rules {
 		$normalized['location_unknown_behavior'] = $location_unknown_behavior;
 		$normalized['location_country_codes']  = $location_country_codes;
 		$normalized['location_state_codes']    = $location_state_codes;
+		$normalized['coupon_mode']              = $coupon_mode;
+		$normalized['coupon_ids']               = $coupon_ids;
 		$normalized['schedule_type']         = $schedule_type;
 		$normalized['schedule_dates']        = $schedule_dates;
 		$normalized['schedule_weekdays']     = $schedule_weekdays;
@@ -1025,6 +1083,12 @@ class BumpMint_Rules {
 		$location_state_codes   = isset( $rule['location_state_codes'] )
 			? self::sanitize_location_state_codes( $rule['location_state_codes'], $location_country_codes )
 			: array();
+		$coupon_mode             = isset( $rule['coupon_mode'] ) && is_scalar( $rule['coupon_mode'] )
+			? sanitize_key( (string) $rule['coupon_mode'] )
+			: BumpMint_Conditions::COUPON_NONE;
+		$coupon_ids              = isset( $rule['coupon_ids'] )
+			? self::sanitize_coupon_ids( $rule['coupon_ids'] )
+			: array();
 		$schedule_dates        = isset( $rule['schedule_dates'] ) ? self::sanitize_schedule_dates( $rule['schedule_dates'] ) : array();
 		$schedule_weekdays     = isset( $rule['schedule_weekdays'] ) ? self::sanitize_schedule_weekdays( $rule['schedule_weekdays'] ) : array();
 		sort( $condition_product_ids, SORT_NUMERIC );
@@ -1033,6 +1097,7 @@ class BumpMint_Rules {
 		sort( $customer_role_slugs, SORT_STRING );
 		sort( $location_country_codes, SORT_STRING );
 		sort( $location_state_codes, SORT_STRING );
+		sort( $coupon_ids, SORT_NUMERIC );
 		sort( $schedule_dates, SORT_STRING );
 		sort( $schedule_weekdays, SORT_NUMERIC );
 
@@ -1053,6 +1118,8 @@ class BumpMint_Rules {
 					$location_unknown_behavior,
 					$location_country_codes,
 					$location_state_codes,
+					$coupon_mode,
+					$coupon_ids,
 					isset( $rule['schedule_type'] ) ? $rule['schedule_type'] : BumpMint_Conditions::SCHEDULE_ALWAYS,
 					$schedule_dates,
 					$schedule_weekdays,
@@ -1078,6 +1145,33 @@ class BumpMint_Rules {
 		$product_ids = array_filter( $product_ids );
 
 		return array_values( array_unique( $product_ids ) );
+	}
+
+	/**
+	 * Sanitizes a coupon ID or list of coupon IDs.
+	 *
+	 * @param mixed $coupon_ids Coupon ID or list of IDs.
+	 * @return array
+	 */
+	private static function sanitize_coupon_ids( $coupon_ids ) {
+		$coupon_ids = is_array( $coupon_ids ) ? $coupon_ids : array( $coupon_ids );
+		$sanitized  = array();
+
+		foreach ( $coupon_ids as $coupon_id ) {
+			if ( ! is_scalar( $coupon_id ) ) {
+				continue;
+			}
+
+			$coupon_id = absint( $coupon_id );
+			if ( $coupon_id ) {
+				$sanitized[] = $coupon_id;
+			}
+		}
+
+		$sanitized = array_values( array_unique( $sanitized ) );
+		sort( $sanitized, SORT_NUMERIC );
+
+		return $sanitized;
 	}
 
 	/**

@@ -32,6 +32,7 @@ class BumpMint_Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'handle_actions' ) );
 		add_action( 'wp_ajax_bumpmint_get_location_states', array( $this, 'ajax_get_location_states' ) );
+		add_action( 'wp_ajax_bumpmint_search_coupons', array( $this, 'ajax_search_coupons' ) );
 	}
 
 	/**
@@ -99,6 +100,7 @@ class BumpMint_Admin {
 				'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
 				'locationNonce'    => wp_create_nonce( 'bumpmint_location_states' ),
 				'locationLoadError' => __( 'States and regions could not be loaded. Try selecting the countries again.', 'bumpmint-order-bump-for-woocommerce' ),
+				'couponSearchNonce' => wp_create_nonce( 'bumpmint_search_coupons' ),
 			)
 		);
 	}
@@ -128,6 +130,64 @@ class BumpMint_Admin {
 		}
 
 		wp_send_json_success( array( 'states' => $response ) );
+	}
+
+	/**
+	 * Searches published WooCommerce coupons for the admin rule selector.
+	 */
+	public function ajax_search_coupons() {
+		check_ajax_referer( 'bumpmint_search_coupons', 'nonce' );
+
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to manage order bumps.', 'bumpmint-order-bump-for-woocommerce' ) ), 403 );
+		}
+
+		$term = isset( $_POST['term'] ) && is_scalar( $_POST['term'] )
+			? sanitize_text_field( wp_unslash( $_POST['term'] ) )
+			: '';
+		$page = isset( $_POST['page'] ) && is_scalar( $_POST['page'] )
+			? max( 1, absint( wp_unslash( $_POST['page'] ) ) )
+			: 1;
+		$args = array(
+			'post_type'              => 'shop_coupon',
+			'post_status'            => 'publish',
+			'fields'                 => 'ids',
+			'posts_per_page'         => 21,
+			'offset'                 => ( $page - 1 ) * 20,
+			'orderby'                => 'title',
+			'order'                  => 'ASC',
+			'no_found_rows'          => true,
+			'update_post_meta_cache' => false,
+			'update_post_term_cache' => false,
+		);
+		if ( '' !== $term ) {
+			$args['s'] = $term;
+		}
+
+		$query    = new WP_Query( $args );
+		$post_ids = array_map( 'absint', $query->posts );
+		$has_more = count( $post_ids ) > 20;
+		$results  = array();
+
+		foreach ( array_slice( $post_ids, 0, 20 ) as $coupon_id ) {
+			$coupon_code = get_the_title( $coupon_id );
+			if ( '' === $coupon_code ) {
+				/* translators: %d: coupon post ID. */
+				$coupon_code = sprintf( __( 'Coupon #%d', 'bumpmint-order-bump-for-woocommerce' ), $coupon_id );
+			}
+
+			$results[] = array(
+				'id'   => $coupon_id,
+				'text' => wp_strip_all_tags( $coupon_code ),
+			);
+		}
+
+		wp_send_json_success(
+			array(
+				'results'    => $results,
+				'pagination' => array( 'more' => $has_more ),
+			)
+		);
 	}
 
 	/**
@@ -197,6 +257,9 @@ class BumpMint_Admin {
 			}
 			if ( ! isset( $data['location_state_codes'] ) ) {
 				$data['location_state_codes'] = array();
+			}
+			if ( ! isset( $data['coupon_ids'] ) ) {
+				$data['coupon_ids'] = array();
 			}
 			if ( ! isset( $data['schedule_dates'] ) ) {
 				$data['schedule_dates'] = array();
@@ -318,6 +381,7 @@ class BumpMint_Admin {
 		$products         = $this->get_products( $rule['bump_product_ids'] );
 		$customer_summary = $this->get_customer_summary( $rule );
 		$location_summary = $this->get_location_summary( $rule );
+		$coupon_summary   = $this->get_coupon_summary( $rule );
 		$schedule_summary = $this->get_schedule_summary( $rule );
 		$is_active         = BumpMint_Rules::STATUS_ACTIVE === $rule['status'];
 		$next_status       = $is_active ? BumpMint_Rules::STATUS_INACTIVE : BumpMint_Rules::STATUS_ACTIVE;
@@ -359,6 +423,9 @@ class BumpMint_Admin {
 				<?php endif; ?>
 				<?php if ( $location_summary ) : ?>
 					<span class="bumpmint-row-detail"><?php echo esc_html( $location_summary ); ?></span>
+				<?php endif; ?>
+				<?php if ( $coupon_summary ) : ?>
+					<span class="bumpmint-row-detail"><?php echo esc_html( $coupon_summary ); ?></span>
 				<?php endif; ?>
 				<?php if ( $schedule_summary ) : ?>
 					<span class="bumpmint-row-detail"><?php echo esc_html( $schedule_summary ); ?></span>
@@ -420,6 +487,8 @@ class BumpMint_Admin {
 			'location_unknown_behavior' => BumpMint_Conditions::LOCATION_UNKNOWN_HIDE,
 			'location_country_codes' => array(),
 			'location_state_codes'   => array(),
+			'coupon_mode'            => BumpMint_Conditions::COUPON_NONE,
+			'coupon_ids'             => array(),
 			'schedule_type'         => BumpMint_Conditions::SCHEDULE_ALWAYS,
 			'schedule_dates'        => array(),
 			'schedule_weekdays'     => array(),
@@ -740,6 +809,37 @@ class BumpMint_Admin {
 										<option value="<?php echo esc_attr( $behavior_key ); ?>" <?php selected( $rule['location_unknown_behavior'], $behavior_key ); ?>><?php echo esc_html( $behavior_label ); ?></option>
 									<?php endforeach; ?>
 								</select>
+							</td>
+						</tr>
+					</table>
+				</div>
+
+				<div class="bumpmint-form-card">
+					<h2><?php esc_html_e( 'Coupon targeting', 'bumpmint-order-bump-for-woocommerce' ); ?></h2>
+					<table class="form-table" role="presentation">
+						<tr>
+							<th scope="row"><label for="bumpmint-coupon-mode"><?php esc_html_e( 'Coupon requirement', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
+							<td>
+								<select id="bumpmint-coupon-mode" name="bumpmint_rule[coupon_mode]" aria-describedby="bumpmint-coupon-description">
+									<?php foreach ( BumpMint_Conditions::get_coupon_modes() as $coupon_mode_key => $coupon_mode_label ) : ?>
+										<option value="<?php echo esc_attr( $coupon_mode_key ); ?>" <?php selected( $rule['coupon_mode'], $coupon_mode_key ); ?>><?php echo esc_html( $coupon_mode_label ); ?></option>
+									<?php endforeach; ?>
+								</select>
+								<p id="bumpmint-coupon-description" class="description"><?php esc_html_e( 'The coupon must be valid and currently applied to the WooCommerce cart. Coupon targeting is combined with the other eligibility settings.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+						<tr class="bumpmint-coupon-fields">
+							<th scope="row">
+								<label for="bumpmint-coupon-ids"><?php esc_html_e( 'Coupons', 'bumpmint-order-bump-for-woocommerce' ); ?></label>
+								<?php
+								echo wc_help_tip( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WooCommerce escapes help tip output.
+									__( 'The offer appears when any selected coupon is applied. Search results include published coupons registered in WooCommerce.', 'bumpmint-order-bump-for-woocommerce' )
+								);
+								?>
+							</th>
+							<td>
+								<?php $this->render_coupon_select( 'bumpmint_rule[coupon_ids][]', 'bumpmint-coupon-ids', $rule['coupon_ids'] ); ?>
+								<p class="description"><?php esc_html_e( 'Coupon targeting controls offer eligibility only. Coupon discounts continue to follow WooCommerce rules and may combine with the order bump price.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
 							</td>
 						</tr>
 					</table>
@@ -1136,6 +1236,32 @@ class BumpMint_Admin {
 	}
 
 	/**
+	 * Renders an AJAX-backed WooCommerce coupon search field.
+	 *
+	 * @param string $name         Field name.
+	 * @param string $id_attr      Field ID.
+	 * @param array  $selected_ids Selected coupon IDs.
+	 */
+	private function render_coupon_select( $name, $id_attr, $selected_ids ) {
+		$selected_ids = array_values( array_unique( array_filter( array_map( 'absint', (array) $selected_ids ) ) ) );
+		?>
+		<select
+			id="<?php echo esc_attr( $id_attr ); ?>"
+			name="<?php echo esc_attr( $name ); ?>"
+			class="bumpmint-coupon-search"
+			style="width: min(400px, 100%);"
+			data-placeholder="<?php esc_attr_e( 'Search for coupons…', 'bumpmint-order-bump-for-woocommerce' ); ?>"
+			multiple="multiple">
+			<?php foreach ( $selected_ids as $selected_id ) : ?>
+				<option value="<?php echo esc_attr( $selected_id ); ?>" selected="selected">
+					<?php echo esc_html( $this->get_coupon_label( $selected_id ) ); ?>
+				</option>
+			<?php endforeach; ?>
+		</select>
+		<?php
+	}
+
+	/**
 	 * Returns a concise condition summary for the rules table.
 	 *
 	 * @param array $rule Rule data.
@@ -1399,6 +1525,55 @@ class BumpMint_Admin {
 
 		/* translators: %s: location inclusion summary. */
 		return wp_html_excerpt( sprintf( __( 'Locations: %s', 'bumpmint-order-bump-for-woocommerce' ), $locations ), 100, '…' );
+	}
+
+	/**
+	 * Returns a concise coupon targeting summary for the rules table.
+	 *
+	 * @param array $rule Rule data.
+	 * @return string
+	 */
+	private function get_coupon_summary( array $rule ) {
+		$mode = isset( $rule['coupon_mode'] ) ? $rule['coupon_mode'] : BumpMint_Conditions::COUPON_NONE;
+		if ( BumpMint_Conditions::COUPON_NONE === $mode ) {
+			return '';
+		}
+
+		if ( BumpMint_Conditions::COUPON_ANY === $mode ) {
+			return __( 'Coupons: Any applied coupon', 'bumpmint-order-bump-for-woocommerce' );
+		}
+
+		$coupon_ids = isset( $rule['coupon_ids'] )
+			? array_values( array_unique( array_filter( array_map( 'absint', (array) $rule['coupon_ids'] ) ) ) )
+			: array();
+		if ( empty( $coupon_ids ) ) {
+			return __( 'Coupons not found', 'bumpmint-order-bump-for-woocommerce' );
+		}
+
+		$labels = array_map( array( $this, 'get_coupon_label' ), $coupon_ids );
+
+		/* translators: %s: comma-separated WooCommerce coupon codes. */
+		return wp_html_excerpt( sprintf( __( 'Coupons: %s', 'bumpmint-order-bump-for-woocommerce' ), implode( ', ', $labels ) ), 100, '…' );
+	}
+
+	/**
+	 * Returns a coupon code or an explicit unavailable-coupon label.
+	 *
+	 * @param int $coupon_id Coupon post ID.
+	 * @return string
+	 */
+	private function get_coupon_label( $coupon_id ) {
+		$coupon_id = absint( $coupon_id );
+		$post      = $coupon_id ? get_post( $coupon_id ) : null;
+		if ( $post && 'shop_coupon' === $post->post_type && 'publish' === $post->post_status ) {
+			$coupon_code = get_the_title( $post );
+			if ( '' !== $coupon_code ) {
+				return wp_strip_all_tags( $coupon_code );
+			}
+		}
+
+		/* translators: %d: unavailable WooCommerce coupon post ID. */
+		return sprintf( __( 'Unavailable coupon #%d', 'bumpmint-order-bump-for-woocommerce' ), $coupon_id );
 	}
 
 	/**

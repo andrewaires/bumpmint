@@ -37,6 +37,10 @@ class BumpMint_Conditions {
 	const LOCATION_UNKNOWN_HIDE = 'hide';
 	const LOCATION_UNKNOWN_SHOW = 'show';
 
+	const COUPON_NONE     = 'none';
+	const COUPON_ANY      = 'any';
+	const COUPON_SPECIFIC = 'specific';
+
 	/**
 	 * Returns all registered condition definitions.
 	 *
@@ -147,6 +151,19 @@ class BumpMint_Conditions {
 	}
 
 	/**
+	 * Returns the supported coupon targeting modes.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function get_coupon_modes() {
+		return array(
+			self::COUPON_NONE     => __( 'No coupon required', 'bumpmint-order-bump-for-woocommerce' ),
+			self::COUPON_ANY      => __( 'Any applied coupon', 'bumpmint-order-bump-for-woocommerce' ),
+			self::COUPON_SPECIFIC => __( 'Specific coupons', 'bumpmint-order-bump-for-woocommerce' ),
+		);
+	}
+
+	/**
 	 * Evaluates a rule against the current cart.
 	 *
 	 * @param array        $rule Rule data.
@@ -164,6 +181,10 @@ class BumpMint_Conditions {
 		}
 
 		if ( ! self::matches_location( $rule ) ) {
+			return false;
+		}
+
+		if ( ! self::matches_coupon( $rule, $cart ) ) {
 			return false;
 		}
 
@@ -301,6 +322,67 @@ class BumpMint_Conditions {
 	}
 
 	/**
+	 * Evaluates applied WooCommerce coupons for a rule.
+	 *
+	 * Specific coupon rules store stable coupon IDs. Applied coupon codes are
+	 * resolved through WooCommerce's cached data-store helper so renamed coupons
+	 * keep matching and browser-provided coupon data is never trusted directly.
+	 *
+	 * @param array        $rule Rule data.
+	 * @param WC_Cart|null $cart Optional cart instance.
+	 * @return bool
+	 */
+	public static function matches_coupon( array $rule, $cart = null ) {
+		$mode = isset( $rule['coupon_mode'] ) && is_scalar( $rule['coupon_mode'] )
+			? sanitize_key( (string) $rule['coupon_mode'] )
+			: self::COUPON_NONE;
+
+		if ( self::COUPON_NONE === $mode ) {
+			return true;
+		}
+
+		if ( ! in_array( $mode, array( self::COUPON_ANY, self::COUPON_SPECIFIC ), true ) ) {
+			return false;
+		}
+
+		$cart = $cart ? $cart : ( function_exists( 'WC' ) ? WC()->cart : null );
+		if ( ! $cart instanceof WC_Cart ) {
+			return false;
+		}
+
+		$applied_codes = array();
+		foreach ( (array) $cart->get_applied_coupons() as $coupon_code ) {
+			if ( ! is_scalar( $coupon_code ) ) {
+				continue;
+			}
+
+			$coupon_code = wc_sanitize_coupon_code( (string) $coupon_code );
+			if ( '' !== $coupon_code ) {
+				$applied_codes[] = $coupon_code;
+			}
+		}
+		if ( self::COUPON_ANY === $mode ) {
+			return ! empty( $applied_codes );
+		}
+
+		$selected_ids = isset( $rule['coupon_ids'] )
+			? self::sanitize_coupon_ids( $rule['coupon_ids'] )
+			: array();
+		if ( empty( $selected_ids ) || empty( $applied_codes ) ) {
+			return false;
+		}
+
+		foreach ( $applied_codes as $coupon_code ) {
+			$coupon_id = wc_get_coupon_id_by_code( (string) $coupon_code );
+			if ( $coupon_id && in_array( $coupon_id, $selected_ids, true ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Resolves the current WooCommerce customer location without persisting it.
 	 *
 	 * @param WC_Customer|null $customer Optional customer object.
@@ -416,6 +498,30 @@ class BumpMint_Conditions {
 		}
 
 		return substr( sanitize_key( (string) $state_code ), 0, 40 );
+	}
+
+	/**
+	 * Sanitizes persisted coupon IDs for runtime comparison.
+	 *
+	 * @param mixed $coupon_ids Coupon ID or list of IDs.
+	 * @return array
+	 */
+	private static function sanitize_coupon_ids( $coupon_ids ) {
+		$coupon_ids = is_array( $coupon_ids ) ? $coupon_ids : array( $coupon_ids );
+		$sanitized  = array();
+
+		foreach ( $coupon_ids as $coupon_id ) {
+			if ( ! is_scalar( $coupon_id ) ) {
+				continue;
+			}
+
+			$coupon_id = absint( $coupon_id );
+			if ( $coupon_id ) {
+				$sanitized[] = $coupon_id;
+			}
+		}
+
+		return array_values( array_unique( $sanitized ) );
 	}
 
 	/**

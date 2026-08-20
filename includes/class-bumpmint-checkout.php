@@ -1491,6 +1491,16 @@ class BumpMint_Checkout {
 			return __( 'This offer is not available for your current location.', 'bumpmint-order-bump-for-woocommerce' );
 		}
 
+		if ( ! BumpMint_Conditions::matches_coupon( $rule ) ) {
+			$coupon_mode = isset( $rule['coupon_mode'] ) ? $rule['coupon_mode'] : BumpMint_Conditions::COUPON_NONE;
+
+			if ( BumpMint_Conditions::COUPON_ANY === $coupon_mode ) {
+				return __( 'Apply a valid coupon to qualify for this offer.', 'bumpmint-order-bump-for-woocommerce' );
+			}
+
+			return __( 'Apply one of the coupons selected for this offer to qualify again.', 'bumpmint-order-bump-for-woocommerce' );
+		}
+
 		if ( ! BumpMint_Conditions::matches_schedule( $rule ) ) {
 			return __( 'This offer is currently outside its scheduled date or time.', 'bumpmint-order-bump-for-woocommerce' );
 		}

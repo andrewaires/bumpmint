@@ -58,6 +58,58 @@
 		$rolesRow.find( ':input' ).prop( 'disabled', ! targetsRoles );
 	}
 
+	function initializeCouponSearch( $form ) {
+		if ( typeof $.fn.selectWoo !== 'function' ) {
+			return;
+		}
+
+		$form.find( '.bumpmint-coupon-search' ).each( function () {
+			var $field = $( this );
+
+			if ( $field.data( 'bumpmintCouponSearchInitialized' ) ) {
+				return;
+			}
+
+			$field.selectWoo({
+				ajax: {
+					url: bumpmintAdmin.ajaxUrl,
+					dataType: 'json',
+					delay: 250,
+					cache: true,
+					data: function ( params ) {
+						return {
+							action: 'bumpmint_search_coupons',
+							nonce: bumpmintAdmin.couponSearchNonce,
+							term: params.term || '',
+							page: params.page || 1
+						};
+					},
+					processResults: function ( response ) {
+						var data = response && response.success && response.data ? response.data : {};
+
+						return {
+							results: Array.isArray( data.results ) ? data.results : [],
+							pagination: data.pagination || { more: false }
+						};
+					}
+				},
+				allowClear: true,
+				minimumInputLength: 0,
+				placeholder: $field.data( 'placeholder' ) || '',
+				width: 'resolve'
+			});
+			$field.data( 'bumpmintCouponSearchInitialized', true );
+		});
+	}
+
+	function updateCouponFields( $form ) {
+		var targetsSpecificCoupons = 'specific' === $form.find( '#bumpmint-coupon-mode' ).val();
+		var $couponFields          = $form.find( '.bumpmint-coupon-fields' );
+
+		$couponFields.toggle( targetsSpecificCoupons );
+		$couponFields.find( ':input' ).prop( 'disabled', ! targetsSpecificCoupons );
+	}
+
 	function updateLocationFields( $form ) {
 		var targetsLocations = 'specific' === $form.find( '#bumpmint-location-mode' ).val();
 		var $locationFields  = $form.find( '.bumpmint-location-fields' );
@@ -219,6 +271,10 @@
 		loadLocationStates( $( this ).closest( 'form' ) );
 	});
 
+	$( document ).on( 'change', '#bumpmint-coupon-mode', function () {
+		updateCouponFields( $( this ).closest( 'form' ) );
+	});
+
 	$( document ).on( 'change', '#bumpmint-discount-enabled', function () {
 		updateDiscountFields( $( this ).closest( 'form' ) );
 	});
@@ -258,10 +314,12 @@
 	$( function () {
 		$( '.bumpmint-rule-form' ).each( function () {
 			var $form = $( this );
+			initializeCouponSearch( $form );
 			updateConditionFields( $form );
 			updateProductTriggerFields( $form );
 			updateCustomerFields( $form );
 			updateLocationFields( $form );
+			updateCouponFields( $form );
 			updateScheduleFields( $form );
 			updateDiscountFields( $form );
 			initializeHelpTips( $form );
