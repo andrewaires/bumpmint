@@ -228,6 +228,72 @@ class BumpMint_Rules {
 			$customer_role_slugs = array();
 		}
 
+		$location_mode = isset( $data['location_mode'] ) && is_scalar( $data['location_mode'] )
+			? sanitize_key( (string) $data['location_mode'] )
+			: BumpMint_Conditions::LOCATION_ALL;
+		if ( ! array_key_exists( $location_mode, BumpMint_Conditions::get_location_modes() ) ) {
+			return new WP_Error(
+				'bumpmint_invalid_location_mode',
+				__( 'Select a valid location targeting option.', 'bumpmint-order-bump-for-woocommerce' )
+			);
+		}
+
+		$location_operator = isset( $data['location_operator'] ) && is_scalar( $data['location_operator'] )
+			? sanitize_key( (string) $data['location_operator'] )
+			: BumpMint_Conditions::LOCATION_INCLUDE;
+		if ( ! array_key_exists( $location_operator, BumpMint_Conditions::get_location_operators() ) ) {
+			return new WP_Error(
+				'bumpmint_invalid_location_operator',
+				__( 'Select a valid location matching option.', 'bumpmint-order-bump-for-woocommerce' )
+			);
+		}
+
+		$location_unknown_behavior = isset( $data['location_unknown_behavior'] ) && is_scalar( $data['location_unknown_behavior'] )
+			? sanitize_key( (string) $data['location_unknown_behavior'] )
+			: BumpMint_Conditions::LOCATION_UNKNOWN_HIDE;
+		if ( ! array_key_exists( $location_unknown_behavior, BumpMint_Conditions::get_location_unknown_behaviors() ) ) {
+			return new WP_Error(
+				'bumpmint_invalid_location_unknown_behavior',
+				__( 'Select what happens when the customer location is unknown.', 'bumpmint-order-bump-for-woocommerce' )
+			);
+		}
+
+		$location_country_codes_raw = isset( $data['location_country_codes'] )
+			? $data['location_country_codes']
+			: array();
+		$location_country_codes = self::sanitize_location_country_codes( $location_country_codes_raw );
+		$location_state_codes_raw = isset( $data['location_state_codes'] )
+			? $data['location_state_codes']
+			: array();
+		$location_state_codes = self::sanitize_location_state_codes( $location_state_codes_raw, $location_country_codes );
+		if ( BumpMint_Conditions::LOCATION_SPECIFIC === $location_mode ) {
+			if ( self::has_invalid_location_country_codes( $location_country_codes_raw ) ) {
+				return new WP_Error(
+					'bumpmint_invalid_location_country',
+					__( 'Select valid countries for location targeting.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+
+			if ( empty( $location_country_codes ) ) {
+				return new WP_Error(
+					'bumpmint_location_country_required',
+					__( 'Select at least one country for location targeting.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+
+			if ( self::has_invalid_location_state_codes( $location_state_codes_raw, $location_country_codes ) ) {
+				return new WP_Error(
+					'bumpmint_invalid_location_state',
+					__( 'Select valid states or regions for the chosen countries.', 'bumpmint-order-bump-for-woocommerce' )
+				);
+			}
+		} else {
+			$location_operator         = BumpMint_Conditions::LOCATION_INCLUDE;
+			$location_unknown_behavior = BumpMint_Conditions::LOCATION_UNKNOWN_HIDE;
+			$location_country_codes    = array();
+			$location_state_codes      = array();
+		}
+
 		$schedule_type = isset( $data['schedule_type'] )
 			? sanitize_key( $data['schedule_type'] )
 			: BumpMint_Conditions::SCHEDULE_ALWAYS;
@@ -460,6 +526,11 @@ class BumpMint_Rules {
 			'condition_value'       => $condition_value,
 			'customer_audience'     => $customer_audience,
 			'customer_role_slugs'   => $customer_role_slugs,
+			'location_mode'         => $location_mode,
+			'location_operator'     => $location_operator,
+			'location_unknown_behavior' => $location_unknown_behavior,
+			'location_country_codes' => $location_country_codes,
+			'location_state_codes'   => $location_state_codes,
 			'schedule_type'         => $schedule_type,
 			'schedule_dates'        => $schedule_dates,
 			'schedule_weekdays'     => $schedule_weekdays,
@@ -727,6 +798,62 @@ class BumpMint_Rules {
 		if ( BumpMint_Conditions::AUDIENCE_ROLES !== $customer_audience ) {
 			$customer_role_slugs = array();
 		}
+
+		$location_country_codes_raw = isset( $rule['location_country_codes'] )
+			? $rule['location_country_codes']
+			: array();
+		$location_country_codes = self::sanitize_location_country_codes( $location_country_codes_raw );
+		$location_state_codes_raw = isset( $rule['location_state_codes'] )
+			? $rule['location_state_codes']
+			: array();
+		$location_state_codes = self::sanitize_location_state_codes( $location_state_codes_raw, $location_country_codes );
+		$location_values_valid = ! self::has_invalid_location_country_codes( $location_country_codes_raw )
+			&& ! self::has_invalid_location_state_codes( $location_state_codes_raw, $location_country_codes );
+		$location_mode             = BumpMint_Conditions::LOCATION_ALL;
+		$location_operator         = BumpMint_Conditions::LOCATION_INCLUDE;
+		$location_unknown_behavior = BumpMint_Conditions::LOCATION_UNKNOWN_HIDE;
+		if ( array_key_exists( 'location_mode', $rule ) ) {
+			$stored_location_mode = is_scalar( $rule['location_mode'] )
+				? sanitize_key( (string) $rule['location_mode'] )
+				: '';
+			if ( array_key_exists( $stored_location_mode, BumpMint_Conditions::get_location_modes() ) ) {
+				$location_mode = $stored_location_mode;
+			} else {
+				$location_mode          = BumpMint_Conditions::LOCATION_SPECIFIC;
+				$location_country_codes = array();
+				$location_state_codes   = array();
+			}
+		}
+		if ( BumpMint_Conditions::LOCATION_SPECIFIC === $location_mode ) {
+			if ( ! $location_values_valid ) {
+				$location_country_codes = array();
+				$location_state_codes   = array();
+			}
+
+			$stored_location_operator = isset( $rule['location_operator'] ) && is_scalar( $rule['location_operator'] )
+				? sanitize_key( (string) $rule['location_operator'] )
+				: BumpMint_Conditions::LOCATION_INCLUDE;
+			if ( array_key_exists( $stored_location_operator, BumpMint_Conditions::get_location_operators() ) ) {
+				$location_operator = $stored_location_operator;
+			} else {
+				$location_country_codes = array();
+				$location_state_codes   = array();
+			}
+
+			$stored_unknown_behavior = isset( $rule['location_unknown_behavior'] ) && is_scalar( $rule['location_unknown_behavior'] )
+				? sanitize_key( (string) $rule['location_unknown_behavior'] )
+				: BumpMint_Conditions::LOCATION_UNKNOWN_HIDE;
+			if ( array_key_exists( $stored_unknown_behavior, BumpMint_Conditions::get_location_unknown_behaviors() ) ) {
+				$location_unknown_behavior = $stored_unknown_behavior;
+			} else {
+				$location_country_codes = array();
+				$location_state_codes   = array();
+			}
+		} else {
+			$location_country_codes = array();
+			$location_state_codes   = array();
+		}
+
 		$schedule_type = isset( $rule['schedule_type'] ) ? sanitize_key( $rule['schedule_type'] ) : BumpMint_Conditions::SCHEDULE_ALWAYS;
 		if ( ! in_array( $schedule_type, array( BumpMint_Conditions::SCHEDULE_ALWAYS, BumpMint_Conditions::SCHEDULE_DATES, BumpMint_Conditions::SCHEDULE_WEEKDAYS ), true ) ) {
 			$schedule_type = BumpMint_Conditions::SCHEDULE_ALWAYS;
@@ -781,6 +908,11 @@ class BumpMint_Rules {
 			'condition_value'       => '0',
 			'customer_audience'     => $customer_audience,
 			'customer_role_slugs'   => $customer_role_slugs,
+			'location_mode'         => $location_mode,
+			'location_operator'     => $location_operator,
+			'location_unknown_behavior' => $location_unknown_behavior,
+			'location_country_codes' => $location_country_codes,
+			'location_state_codes'   => $location_state_codes,
 			'schedule_type'         => $schedule_type,
 			'schedule_dates'        => $schedule_dates,
 			'schedule_weekdays'     => $schedule_weekdays,
@@ -810,6 +942,11 @@ class BumpMint_Rules {
 		$normalized['condition_category_ids'] = $normalized['condition_category_enabled'] ? $condition_category_ids : array();
 		$normalized['customer_audience']       = $customer_audience;
 		$normalized['customer_role_slugs']     = $customer_role_slugs;
+		$normalized['location_mode']           = $location_mode;
+		$normalized['location_operator']       = $location_operator;
+		$normalized['location_unknown_behavior'] = $location_unknown_behavior;
+		$normalized['location_country_codes']  = $location_country_codes;
+		$normalized['location_state_codes']    = $location_state_codes;
 		$normalized['schedule_type']         = $schedule_type;
 		$normalized['schedule_dates']        = $schedule_dates;
 		$normalized['schedule_weekdays']     = $schedule_weekdays;
@@ -873,12 +1010,29 @@ class BumpMint_Rules {
 		$customer_role_slugs   = isset( $rule['customer_role_slugs'] )
 			? self::sanitize_role_slugs( $rule['customer_role_slugs'] )
 			: array();
+		$location_mode         = isset( $rule['location_mode'] ) && is_scalar( $rule['location_mode'] )
+			? sanitize_key( (string) $rule['location_mode'] )
+			: BumpMint_Conditions::LOCATION_ALL;
+		$location_operator     = isset( $rule['location_operator'] ) && is_scalar( $rule['location_operator'] )
+			? sanitize_key( (string) $rule['location_operator'] )
+			: BumpMint_Conditions::LOCATION_INCLUDE;
+		$location_unknown_behavior = isset( $rule['location_unknown_behavior'] ) && is_scalar( $rule['location_unknown_behavior'] )
+			? sanitize_key( (string) $rule['location_unknown_behavior'] )
+			: BumpMint_Conditions::LOCATION_UNKNOWN_HIDE;
+		$location_country_codes = isset( $rule['location_country_codes'] )
+			? self::sanitize_location_country_codes( $rule['location_country_codes'] )
+			: array();
+		$location_state_codes   = isset( $rule['location_state_codes'] )
+			? self::sanitize_location_state_codes( $rule['location_state_codes'], $location_country_codes )
+			: array();
 		$schedule_dates        = isset( $rule['schedule_dates'] ) ? self::sanitize_schedule_dates( $rule['schedule_dates'] ) : array();
 		$schedule_weekdays     = isset( $rule['schedule_weekdays'] ) ? self::sanitize_schedule_weekdays( $rule['schedule_weekdays'] ) : array();
 		sort( $condition_product_ids, SORT_NUMERIC );
 		sort( $condition_category_ids, SORT_NUMERIC );
 		sort( $bump_product_ids, SORT_NUMERIC );
 		sort( $customer_role_slugs, SORT_STRING );
+		sort( $location_country_codes, SORT_STRING );
+		sort( $location_state_codes, SORT_STRING );
 		sort( $schedule_dates, SORT_STRING );
 		sort( $schedule_weekdays, SORT_NUMERIC );
 
@@ -894,6 +1048,11 @@ class BumpMint_Rules {
 					$rule['condition_value'],
 					$customer_audience,
 					$customer_role_slugs,
+					$location_mode,
+					$location_operator,
+					$location_unknown_behavior,
+					$location_country_codes,
+					$location_state_codes,
 					isset( $rule['schedule_type'] ) ? $rule['schedule_type'] : BumpMint_Conditions::SCHEDULE_ALWAYS,
 					$schedule_dates,
 					$schedule_weekdays,
@@ -946,6 +1105,117 @@ class BumpMint_Rules {
 		sort( $sanitized, SORT_STRING );
 
 		return $sanitized;
+	}
+
+	/**
+	 * Sanitizes ISO-style country codes for location targeting.
+	 *
+	 * @param mixed $country_codes Country code or list of country codes.
+	 * @return array
+	 */
+	private static function sanitize_location_country_codes( $country_codes ) {
+		$country_codes = is_array( $country_codes ) ? $country_codes : array( $country_codes );
+		$sanitized     = array();
+
+		foreach ( $country_codes as $country_code ) {
+			if ( ! is_scalar( $country_code ) ) {
+				continue;
+			}
+
+			$country_code = strtoupper( trim( (string) $country_code ) );
+			if ( preg_match( '/^[A-Z]{2}$/', $country_code ) ) {
+				$sanitized[] = $country_code;
+			}
+		}
+
+		$sanitized = array_values( array_unique( $sanitized ) );
+		sort( $sanitized, SORT_STRING );
+
+		return $sanitized;
+	}
+
+	/**
+	 * Checks a submitted or stored country list for malformed values.
+	 *
+	 * @param mixed $country_codes Country code or list of country codes.
+	 * @return bool
+	 */
+	private static function has_invalid_location_country_codes( $country_codes ) {
+		$country_codes = is_array( $country_codes ) ? $country_codes : array( $country_codes );
+
+		foreach ( $country_codes as $country_code ) {
+			if ( ! is_scalar( $country_code ) ) {
+				return true;
+			}
+
+			$country_code = strtoupper( trim( (string) $country_code ) );
+			if ( '' !== $country_code && ! preg_match( '/^[A-Z]{2}$/', $country_code ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Sanitizes composite country:state location targeting codes.
+	 *
+	 * @param mixed $state_codes   State code or list of state codes.
+	 * @param array $country_codes Selected country codes.
+	 * @return array
+	 */
+	private static function sanitize_location_state_codes( $state_codes, array $country_codes ) {
+		$state_codes = is_array( $state_codes ) ? $state_codes : array( $state_codes );
+		$sanitized   = array();
+
+		foreach ( $state_codes as $state_code ) {
+			if ( ! is_scalar( $state_code ) ) {
+				continue;
+			}
+
+			$parts   = explode( ':', (string) $state_code, 2 );
+			$country = isset( $parts[0] ) ? strtoupper( trim( $parts[0] ) ) : '';
+			$state   = isset( $parts[1] ) ? substr( sanitize_key( $parts[1] ), 0, 40 ) : '';
+			if ( preg_match( '/^[A-Z]{2}$/', $country ) && '' !== $state && in_array( $country, $country_codes, true ) ) {
+				$sanitized[] = $country . ':' . $state;
+			}
+		}
+
+		$sanitized = array_values( array_unique( $sanitized ) );
+		sort( $sanitized, SORT_STRING );
+
+		return $sanitized;
+	}
+
+	/**
+	 * Checks a state/region list for malformed or cross-country values.
+	 *
+	 * @param mixed $state_codes   State code or list of state codes.
+	 * @param array $country_codes Selected country codes.
+	 * @return bool
+	 */
+	private static function has_invalid_location_state_codes( $state_codes, array $country_codes ) {
+		$state_codes = is_array( $state_codes ) ? $state_codes : array( $state_codes );
+
+		foreach ( $state_codes as $state_code ) {
+			if ( ! is_scalar( $state_code ) ) {
+				return true;
+			}
+
+			$state_code = trim( (string) $state_code );
+			if ( '' === $state_code ) {
+				continue;
+			}
+
+			$parts   = explode( ':', $state_code, 2 );
+			$country = isset( $parts[0] ) ? strtoupper( trim( $parts[0] ) ) : '';
+			$state   = isset( $parts[1] ) ? substr( sanitize_key( $parts[1] ), 0, 40 ) : '';
+			if ( ! preg_match( '/^[A-Z]{2}$/', $country ) || '' === $state || ! in_array( $country, $country_codes, true ) ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**

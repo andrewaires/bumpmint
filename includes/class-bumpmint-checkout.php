@@ -1487,6 +1487,10 @@ class BumpMint_Checkout {
 			return __( 'Your account does not have a required user role for this offer.', 'bumpmint-order-bump-for-woocommerce' );
 		}
 
+		if ( ! BumpMint_Conditions::matches_location( $rule ) ) {
+			return __( 'This offer is not available for your current location.', 'bumpmint-order-bump-for-woocommerce' );
+		}
+
 		if ( ! BumpMint_Conditions::matches_schedule( $rule ) ) {
 			return __( 'This offer is currently outside its scheduled date or time.', 'bumpmint-order-bump-for-woocommerce' );
 		}

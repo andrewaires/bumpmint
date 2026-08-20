@@ -23,7 +23,7 @@ Create multiple campaigns without code, target each offer to the current cart, a
 ### Why stores choose BumpMint
 
 * **Sell more with less friction** — Add relevant products directly to checkout instead of sending customers through another funnel.
-* **Show the right offer** — Target products, variations, categories, cart value, item quantity, or every eligible checkout.
+* **Show the right offer** — Target products, variations, categories, cart value, item quantity, customer audiences, or locations.
 * **Protect promotional margins** — Enforce discounts, stock, eligibility, and quantity limits on the server.
 * **Run timely campaigns** — Schedule offers by date, weekday, and optional time range.
 * **Match the store experience** — Customize the banner, image, title, description, and dynamic price or product text.
@@ -40,6 +40,8 @@ Display an order bump when:
 * Every eligible checkout should see the offer.
 
 Product and category triggers can work together, and category-only campaigns are supported. Add a schedule for selected dates, recurring weekdays, or a time range in the WordPress site timezone. BumpMint excludes its own products from subtotal and quantity rules so an offer cannot activate itself.
+
+Customer targeting can include everyone, logged-in users, logged-out visitors, or selected WordPress roles. Location targeting uses WooCommerce's current shipping country and region, with billing as a fallback. Select whole countries or narrow individual countries to states or regions, and choose whether an offer remains hidden or visible while the location is unknown.
 
 ### Create compelling offers without losing control
 
@@ -78,6 +80,7 @@ Analytics data stays in the WordPress database. BumpMint does not store customer
 * **Multiple order bumps:** Manage multiple checkout campaigns from WordPress.
 * **Campaign status:** Activate or deactivate an order bump without deleting its settings.
 * **Customer targeting:** Show offers to everyone, logged-in users, logged-out visitors, or selected roles.
+* **Location targeting:** Include or exclude countries and optional states or regions.
 * **Multiple offers:** Add independently selectable products to one campaign.
 * **Product and variation targeting:** Match any or all selected items.
 * **Category targeting:** Match categories, child categories, or category-only rules.
@@ -128,7 +131,11 @@ No. Campaigns, rules, schedules, discounts, content, and reports are managed fro
 
 = Which conditions can trigger an order bump? =
 
-Use any or all selected products, product categories, cart subtotal, cart item quantity, or **Always show**. Category-only rules are supported, and every condition can be combined with an availability schedule.
+Use any or all selected products, product categories, cart subtotal, cart item quantity, or **Always show**. Category-only rules are supported, and every condition can be combined with customer, location, and availability targeting.
+
+= How does location targeting work? =
+
+Choose countries from the locations where your WooCommerce store sells, optionally limit individual countries to selected states or regions, and include or exclude those locations. BumpMint prefers the current shipping address and falls back to billing. You can hide or show the offer until WooCommerce knows enough of the address to evaluate the rule.
 
 = Can one campaign contain multiple products or variations? =
 

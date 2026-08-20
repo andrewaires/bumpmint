@@ -58,6 +58,90 @@
 		$rolesRow.find( ':input' ).prop( 'disabled', ! targetsRoles );
 	}
 
+	function updateLocationFields( $form ) {
+		var targetsLocations = 'specific' === $form.find( '#bumpmint-location-mode' ).val();
+		var $locationFields  = $form.find( '.bumpmint-location-fields' );
+		var $statesRow       = $form.find( '.bumpmint-location-states-row' );
+		var $statesSelect    = $form.find( '#bumpmint-location-states' );
+		var hasStates        = $statesSelect.find( 'option' ).length > 0;
+
+		$locationFields.toggle( targetsLocations );
+		$locationFields.find( ':input' ).prop( 'disabled', ! targetsLocations );
+		$statesRow.toggle( targetsLocations && hasStates );
+		$statesSelect.prop( 'disabled', !( targetsLocations && hasStates ) );
+	}
+
+	function loadLocationStates( $form ) {
+		var $countries = $form.find( '#bumpmint-location-countries' );
+		var $states = $form.find( '#bumpmint-location-states' );
+		var $feedback = $form.find( '.bumpmint-location-state-feedback' );
+		var countryCodes = $countries.val() || [];
+		var selectedStates = $states.val() || [];
+		var previousRequest = $form.data( 'bumpmintLocationRequest' );
+		var request;
+
+		if ( previousRequest && previousRequest.readyState !== 4 ) {
+			previousRequest.abort();
+		}
+
+		$feedback.text( '' );
+		if ( ! countryCodes.length ) {
+			$states.empty().trigger( 'change' );
+			updateLocationFields( $form );
+			return;
+		}
+
+		$states.prop( 'disabled', true );
+		request = $.ajax({
+			url: bumpmintAdmin.ajaxUrl,
+			method: 'POST',
+			dataType: 'json',
+			data: {
+				action: 'bumpmint_get_location_states',
+				nonce: bumpmintAdmin.locationNonce,
+				country_codes: countryCodes
+			}
+		});
+		$form.data( 'bumpmintLocationRequest', request );
+
+		request.done( function ( response ) {
+			var states;
+
+			if ( $form.data( 'bumpmintLocationRequest' ) !== request ) {
+				return;
+			}
+
+			if ( ! response || ! response.success || ! response.data || ! Array.isArray( response.data.states ) ) {
+				$feedback.text( bumpmintAdmin.locationLoadError || '' );
+				return;
+			}
+			states = response.data.states;
+
+			$states.empty();
+			states.forEach( function ( state ) {
+				var isSelected = selectedStates.indexOf( state.value ) !== -1;
+				$( '<option />' )
+					.val( state.value )
+					.text( state.label )
+					.prop( 'selected', isSelected )
+					.appendTo( $states );
+			});
+			$states.trigger( 'change' );
+		});
+
+		request.fail( function ( xhr, status ) {
+			if ( 'abort' !== status && $form.data( 'bumpmintLocationRequest' ) === request ) {
+				$feedback.text( bumpmintAdmin.locationLoadError || '' );
+			}
+		});
+
+		request.always( function () {
+			if ( $form.data( 'bumpmintLocationRequest' ) === request ) {
+				updateLocationFields( $form );
+			}
+		});
+	}
+
 	function updateScheduleFields( $form ) {
 		var scheduleType = $form.find( '#bumpmint-schedule-type' ).val();
 		var showDates    = 'dates' === scheduleType;
@@ -127,6 +211,14 @@
 		updateCustomerFields( $( this ).closest( 'form' ) );
 	});
 
+	$( document ).on( 'change', '#bumpmint-location-mode', function () {
+		updateLocationFields( $( this ).closest( 'form' ) );
+	});
+
+	$( document ).on( 'change', '#bumpmint-location-countries', function () {
+		loadLocationStates( $( this ).closest( 'form' ) );
+	});
+
 	$( document ).on( 'change', '#bumpmint-discount-enabled', function () {
 		updateDiscountFields( $( this ).closest( 'form' ) );
 	});
@@ -169,6 +261,7 @@
 			updateConditionFields( $form );
 			updateProductTriggerFields( $form );
 			updateCustomerFields( $form );
+			updateLocationFields( $form );
 			updateScheduleFields( $form );
 			updateDiscountFields( $form );
 			initializeHelpTips( $form );

@@ -31,6 +31,7 @@ class BumpMint_Admin {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'handle_actions' ) );
+		add_action( 'wp_ajax_bumpmint_get_location_states', array( $this, 'ajax_get_location_states' ) );
 	}
 
 	/**
@@ -95,8 +96,38 @@ class BumpMint_Admin {
 				'useImageText'     => __( 'Use this image', 'bumpmint-order-bump-for-woocommerce' ),
 				'confirmDelete'    => __( 'Are you sure you want to delete this order bump?', 'bumpmint-order-bump-for-woocommerce' ),
 				'maxScheduleDates' => BumpMint_Rules::MAX_SCHEDULE_DATES,
+				'ajaxUrl'          => admin_url( 'admin-ajax.php' ),
+				'locationNonce'    => wp_create_nonce( 'bumpmint_location_states' ),
+				'locationLoadError' => __( 'States and regions could not be loaded. Try selecting the countries again.', 'bumpmint-order-bump-for-woocommerce' ),
 			)
 		);
+	}
+
+	/**
+	 * Returns states and regions for selected countries on the rule form.
+	 */
+	public function ajax_get_location_states() {
+		check_ajax_referer( 'bumpmint_location_states', 'nonce' );
+
+		if ( ! current_user_can( self::CAPABILITY ) ) {
+			wp_send_json_error( array( 'message' => __( 'You do not have permission to manage order bumps.', 'bumpmint-order-bump-for-woocommerce' ) ), 403 );
+		}
+
+		$country_codes = isset( $_POST['country_codes'] ) && is_array( $_POST['country_codes'] )
+			? array_map( 'sanitize_text_field', wp_unslash( $_POST['country_codes'] ) )
+			: array();
+		$country_codes = $this->sanitize_location_country_codes( $country_codes );
+		$options       = $this->get_location_state_options( $country_codes );
+		$response      = array();
+
+		foreach ( $options as $state_code => $state_label ) {
+			$response[] = array(
+				'value' => $state_code,
+				'label' => $state_label,
+			);
+		}
+
+		wp_send_json_success( array( 'states' => $response ) );
 	}
 
 	/**
@@ -160,6 +191,12 @@ class BumpMint_Admin {
 			}
 			if ( ! isset( $data['customer_role_slugs'] ) ) {
 				$data['customer_role_slugs'] = array();
+			}
+			if ( ! isset( $data['location_country_codes'] ) ) {
+				$data['location_country_codes'] = array();
+			}
+			if ( ! isset( $data['location_state_codes'] ) ) {
+				$data['location_state_codes'] = array();
 			}
 			if ( ! isset( $data['schedule_dates'] ) ) {
 				$data['schedule_dates'] = array();
@@ -280,6 +317,7 @@ class BumpMint_Admin {
 	private function render_rule_row( array $rule ) {
 		$products         = $this->get_products( $rule['bump_product_ids'] );
 		$customer_summary = $this->get_customer_summary( $rule );
+		$location_summary = $this->get_location_summary( $rule );
 		$schedule_summary = $this->get_schedule_summary( $rule );
 		$is_active         = BumpMint_Rules::STATUS_ACTIVE === $rule['status'];
 		$next_status       = $is_active ? BumpMint_Rules::STATUS_INACTIVE : BumpMint_Rules::STATUS_ACTIVE;
@@ -318,6 +356,9 @@ class BumpMint_Admin {
 				<span class="bumpmint-row-detail"><?php echo esc_html( $this->get_condition_summary( $rule ) ); ?></span>
 				<?php if ( $customer_summary ) : ?>
 					<span class="bumpmint-row-detail"><?php echo esc_html( $customer_summary ); ?></span>
+				<?php endif; ?>
+				<?php if ( $location_summary ) : ?>
+					<span class="bumpmint-row-detail"><?php echo esc_html( $location_summary ); ?></span>
 				<?php endif; ?>
 				<?php if ( $schedule_summary ) : ?>
 					<span class="bumpmint-row-detail"><?php echo esc_html( $schedule_summary ); ?></span>
@@ -374,6 +415,11 @@ class BumpMint_Admin {
 			'condition_value'       => '',
 			'customer_audience'     => BumpMint_Conditions::AUDIENCE_EVERYONE,
 			'customer_role_slugs'   => array(),
+			'location_mode'         => BumpMint_Conditions::LOCATION_ALL,
+			'location_operator'     => BumpMint_Conditions::LOCATION_INCLUDE,
+			'location_unknown_behavior' => BumpMint_Conditions::LOCATION_UNKNOWN_HIDE,
+			'location_country_codes' => array(),
+			'location_state_codes'   => array(),
 			'schedule_type'         => BumpMint_Conditions::SCHEDULE_ALWAYS,
 			'schedule_dates'        => array(),
 			'schedule_weekdays'     => array(),
@@ -412,6 +458,8 @@ class BumpMint_Admin {
 		$timezone_name = wp_timezone()->getName();
 		$is_active     = BumpMint_Rules::STATUS_ACTIVE === $rule['status'];
 		$role_options  = $this->get_user_role_options( (array) $rule['customer_role_slugs'] );
+		$country_options = $this->get_location_country_options( (array) $rule['location_country_codes'] );
+		$state_options   = $this->get_location_state_options( (array) $rule['location_country_codes'], (array) $rule['location_state_codes'] );
 
 		$errors = get_settings_errors( 'bumpmint' );
 		?>
@@ -604,6 +652,94 @@ class BumpMint_Admin {
 									<?php endforeach; ?>
 								</select>
 								<p class="description"><?php esc_html_e( 'Select one or more roles. Matching any selected role makes the customer eligible.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+					</table>
+				</div>
+
+				<div class="bumpmint-form-card">
+					<h2><?php esc_html_e( 'Location targeting', 'bumpmint-order-bump-for-woocommerce' ); ?></h2>
+					<table class="form-table" role="presentation">
+						<tr>
+							<th scope="row"><label for="bumpmint-location-mode"><?php esc_html_e( 'Customer location', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
+							<td>
+								<select id="bumpmint-location-mode" name="bumpmint_rule[location_mode]" aria-describedby="bumpmint-location-description">
+									<?php foreach ( BumpMint_Conditions::get_location_modes() as $mode_key => $mode_label ) : ?>
+										<option value="<?php echo esc_attr( $mode_key ); ?>" <?php selected( $rule['location_mode'], $mode_key ); ?>><?php echo esc_html( $mode_label ); ?></option>
+									<?php endforeach; ?>
+								</select>
+								<p id="bumpmint-location-description" class="description"><?php esc_html_e( 'Uses the location currently known by WooCommerce. Shipping is preferred, with billing as a fallback. Before an address is entered, WooCommerce may use the store default or configured geolocation.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+						<tr class="bumpmint-location-fields">
+							<th scope="row"><label for="bumpmint-location-operator"><?php esc_html_e( 'Matching', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
+							<td>
+								<select id="bumpmint-location-operator" name="bumpmint_rule[location_operator]">
+									<?php foreach ( BumpMint_Conditions::get_location_operators() as $operator_key => $operator_label ) : ?>
+										<option value="<?php echo esc_attr( $operator_key ); ?>" <?php selected( $rule['location_operator'], $operator_key ); ?>><?php echo esc_html( $operator_label ); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</td>
+						</tr>
+						<tr class="bumpmint-location-fields">
+							<th scope="row"><label for="bumpmint-location-countries"><?php esc_html_e( 'Countries', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
+							<td>
+								<select
+									id="bumpmint-location-countries"
+									name="bumpmint_rule[location_country_codes][]"
+									class="wc-enhanced-select"
+									multiple="multiple"
+									data-placeholder="<?php esc_attr_e( 'Select countries', 'bumpmint-order-bump-for-woocommerce' ); ?>"
+									style="width: 420px; max-width: 100%;"
+								>
+									<?php foreach ( $country_options as $country_code => $country_label ) : ?>
+										<option value="<?php echo esc_attr( $country_code ); ?>" <?php selected( in_array( $country_code, (array) $rule['location_country_codes'], true ) ); ?>><?php echo esc_html( $country_label ); ?></option>
+									<?php endforeach; ?>
+								</select>
+								<p class="description"><?php esc_html_e( 'Countries come from the locations where the WooCommerce store currently sells.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+								<p class="bumpmint-location-state-feedback" role="status" aria-live="polite"></p>
+							</td>
+						</tr>
+						<tr class="bumpmint-location-fields bumpmint-location-states-row">
+							<th scope="row">
+								<label for="bumpmint-location-states"><?php esc_html_e( 'States / regions', 'bumpmint-order-bump-for-woocommerce' ); ?></label>
+								<?php
+								echo wc_help_tip( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WooCommerce escapes help tip output.
+									__( 'Optional. If regions are selected for a country, only those regions match. A selected country with no regions matches the entire country.', 'bumpmint-order-bump-for-woocommerce' )
+								);
+								?>
+							</th>
+							<td>
+								<select
+									id="bumpmint-location-states"
+									name="bumpmint_rule[location_state_codes][]"
+									class="wc-enhanced-select"
+									multiple="multiple"
+									data-placeholder="<?php esc_attr_e( 'Select states or regions', 'bumpmint-order-bump-for-woocommerce' ); ?>"
+									style="width: 420px; max-width: 100%;"
+								>
+									<?php foreach ( $state_options as $state_code => $state_label ) : ?>
+										<option value="<?php echo esc_attr( $state_code ); ?>" <?php selected( in_array( $state_code, (array) $rule['location_state_codes'], true ) ); ?>><?php echo esc_html( $state_label ); ?></option>
+									<?php endforeach; ?>
+								</select>
+								<p class="description"><?php esc_html_e( 'Only regions registered by WooCommerce or another active plugin are listed.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</td>
+						</tr>
+						<tr class="bumpmint-location-fields">
+							<th scope="row">
+								<label for="bumpmint-location-unknown"><?php esc_html_e( 'Unknown location', 'bumpmint-order-bump-for-woocommerce' ); ?></label>
+								<?php
+								echo wc_help_tip( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WooCommerce escapes help tip output.
+									__( 'A location is unknown when WooCommerce has no customer country, or when a state-specific rule has no customer state. This can happen in virtual-product checkouts without billing location fields.', 'bumpmint-order-bump-for-woocommerce' )
+								);
+								?>
+							</th>
+							<td>
+								<select id="bumpmint-location-unknown" name="bumpmint_rule[location_unknown_behavior]">
+									<?php foreach ( BumpMint_Conditions::get_location_unknown_behaviors() as $behavior_key => $behavior_label ) : ?>
+										<option value="<?php echo esc_attr( $behavior_key ); ?>" <?php selected( $rule['location_unknown_behavior'], $behavior_key ); ?>><?php echo esc_html( $behavior_label ); ?></option>
+									<?php endforeach; ?>
+								</select>
 							</td>
 						</tr>
 					</table>
@@ -1117,6 +1253,203 @@ class BumpMint_Admin {
 
 		natcasesort( $options );
 		return $options;
+	}
+
+	/**
+	 * Returns allowed selling countries plus selected unavailable countries.
+	 *
+	 * @param array $selected_countries Selected country codes.
+	 * @return array<string,string>
+	 */
+	private function get_location_country_options( array $selected_countries = array() ) {
+		$selected_countries = $this->sanitize_location_country_codes( $selected_countries );
+		$all_countries      = WC()->countries->get_countries();
+		$options            = WC()->countries->get_allowed_countries();
+
+		foreach ( $selected_countries as $country_code ) {
+			if ( isset( $options[ $country_code ] ) ) {
+				continue;
+			}
+
+			if ( isset( $all_countries[ $country_code ] ) ) {
+				$options[ $country_code ] = sprintf(
+					/* translators: %s: country name that is no longer an allowed selling location. */
+					__( 'Not currently sold to: %s', 'bumpmint-order-bump-for-woocommerce' ),
+					$all_countries[ $country_code ]
+				);
+			} else {
+				$options[ $country_code ] = sprintf(
+					/* translators: %s: unavailable country code. */
+					__( 'Unavailable country: %s', 'bumpmint-order-bump-for-woocommerce' ),
+					$country_code
+				);
+			}
+		}
+
+		natcasesort( $options );
+		return $options;
+	}
+
+	/**
+	 * Returns registered states for selected countries and preserves unavailable selections.
+	 *
+	 * @param array $country_codes Selected country codes.
+	 * @param array $selected_states Selected composite country:state codes.
+	 * @return array<string,string>
+	 */
+	private function get_location_state_options( array $country_codes, array $selected_states = array() ) {
+		$country_codes  = $this->sanitize_location_country_codes( $country_codes );
+		$selected_states = $this->sanitize_location_state_codes( $selected_states, $country_codes );
+		$all_countries   = WC()->countries->get_countries();
+		$options         = array();
+
+		foreach ( $country_codes as $country_code ) {
+			$country_label = isset( $all_countries[ $country_code ] ) ? $all_countries[ $country_code ] : $country_code;
+			$states        = WC()->countries->get_states( $country_code );
+			if ( ! is_array( $states ) ) {
+				continue;
+			}
+
+			foreach ( $states as $state_code => $state_label ) {
+				$state_code = substr( sanitize_key( $state_code ), 0, 40 );
+				if ( '' !== $state_code ) {
+					$options[ $country_code . ':' . $state_code ] = $country_label . ' — ' . $state_label;
+				}
+			}
+		}
+
+		foreach ( $selected_states as $selected_state ) {
+			if ( isset( $options[ $selected_state ] ) ) {
+				continue;
+			}
+
+			$parts         = explode( ':', $selected_state, 2 );
+			$country_code  = $parts[0];
+			$state_code    = isset( $parts[1] ) ? $parts[1] : '';
+			$country_label = isset( $all_countries[ $country_code ] ) ? $all_countries[ $country_code ] : $country_code;
+			$options[ $selected_state ] = sprintf(
+				/* translators: 1: country name, 2: unavailable state or region code. */
+				__( '%1$s — Unavailable region: %2$s', 'bumpmint-order-bump-for-woocommerce' ),
+				$country_label,
+				$state_code
+			);
+		}
+
+		natcasesort( $options );
+		return $options;
+	}
+
+	/**
+	 * Returns a concise location targeting summary for the rules table.
+	 *
+	 * @param array $rule Rule data.
+	 * @return string
+	 */
+	private function get_location_summary( array $rule ) {
+		$mode = isset( $rule['location_mode'] ) ? $rule['location_mode'] : BumpMint_Conditions::LOCATION_ALL;
+		if ( BumpMint_Conditions::LOCATION_ALL === $mode ) {
+			return '';
+		}
+
+		$country_codes = isset( $rule['location_country_codes'] )
+			? $this->sanitize_location_country_codes( (array) $rule['location_country_codes'] )
+			: array();
+		$state_codes   = isset( $rule['location_state_codes'] )
+			? $this->sanitize_location_state_codes( (array) $rule['location_state_codes'], $country_codes )
+			: array();
+		if ( empty( $country_codes ) ) {
+			return __( 'Locations not found', 'bumpmint-order-bump-for-woocommerce' );
+		}
+
+		$all_countries = WC()->countries->get_countries();
+		$parts         = array();
+		foreach ( $country_codes as $country_code ) {
+			$country_label = isset( $all_countries[ $country_code ] ) ? $all_countries[ $country_code ] : $country_code;
+			$states        = WC()->countries->get_states( $country_code );
+			$state_options = array();
+			$state_labels  = array();
+			if ( is_array( $states ) ) {
+				foreach ( $states as $registered_state_code => $registered_state_label ) {
+					$state_options[ substr( sanitize_key( $registered_state_code ), 0, 40 ) ] = $registered_state_label;
+				}
+			}
+
+			foreach ( $state_codes as $state_code ) {
+				$state_parts = explode( ':', $state_code, 2 );
+				if ( $country_code !== $state_parts[0] ) {
+					continue;
+				}
+
+				$state_key      = isset( $state_parts[1] ) ? $state_parts[1] : '';
+				$state_labels[] = isset( $state_options[ $state_key ] )
+					? $state_options[ $state_key ]
+					: $state_key;
+			}
+
+			$parts[] = empty( $state_labels )
+				? $country_label
+				: $country_label . ': ' . implode( ', ', $state_labels );
+		}
+
+		$locations = implode( '; ', $parts );
+		if ( BumpMint_Conditions::LOCATION_EXCLUDE === $rule['location_operator'] ) {
+			/* translators: %s: location exclusion summary. */
+			return wp_html_excerpt( sprintf( __( 'Excluded locations: %s', 'bumpmint-order-bump-for-woocommerce' ), $locations ), 100, '…' );
+		}
+
+		/* translators: %s: location inclusion summary. */
+		return wp_html_excerpt( sprintf( __( 'Locations: %s', 'bumpmint-order-bump-for-woocommerce' ), $locations ), 100, '…' );
+	}
+
+	/**
+	 * Sanitizes country codes used by the location form.
+	 *
+	 * @param mixed $country_codes Country code or list of codes.
+	 * @return array
+	 */
+	private function sanitize_location_country_codes( $country_codes ) {
+		$country_codes = is_array( $country_codes ) ? $country_codes : array( $country_codes );
+		$sanitized     = array();
+
+		foreach ( $country_codes as $country_code ) {
+			if ( ! is_scalar( $country_code ) ) {
+				continue;
+			}
+
+			$country_code = strtoupper( trim( (string) $country_code ) );
+			if ( preg_match( '/^[A-Z]{2}$/', $country_code ) ) {
+				$sanitized[] = $country_code;
+			}
+		}
+
+		return array_values( array_unique( $sanitized ) );
+	}
+
+	/**
+	 * Sanitizes composite country:state codes used by the location form.
+	 *
+	 * @param mixed $state_codes   State code or list of codes.
+	 * @param array $country_codes Selected country codes.
+	 * @return array
+	 */
+	private function sanitize_location_state_codes( $state_codes, array $country_codes ) {
+		$state_codes = is_array( $state_codes ) ? $state_codes : array( $state_codes );
+		$sanitized   = array();
+
+		foreach ( $state_codes as $state_code ) {
+			if ( ! is_scalar( $state_code ) ) {
+				continue;
+			}
+
+			$parts   = explode( ':', (string) $state_code, 2 );
+			$country = isset( $parts[0] ) ? strtoupper( trim( $parts[0] ) ) : '';
+			$state   = isset( $parts[1] ) ? substr( sanitize_key( $parts[1] ), 0, 40 ) : '';
+			if ( preg_match( '/^[A-Z]{2}$/', $country ) && '' !== $state && in_array( $country, $country_codes, true ) ) {
+				$sanitized[] = $country . ':' . $state;
+			}
+		}
+
+		return array_values( array_unique( $sanitized ) );
 	}
 
 	/**

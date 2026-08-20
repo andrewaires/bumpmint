@@ -28,6 +28,15 @@ class BumpMint_Conditions {
 	const AUDIENCE_LOGGED_OUT = 'logged_out';
 	const AUDIENCE_ROLES      = 'roles';
 
+	const LOCATION_ALL      = 'all';
+	const LOCATION_SPECIFIC = 'specific';
+
+	const LOCATION_INCLUDE = 'include';
+	const LOCATION_EXCLUDE = 'exclude';
+
+	const LOCATION_UNKNOWN_HIDE = 'hide';
+	const LOCATION_UNKNOWN_SHOW = 'show';
+
 	/**
 	 * Returns all registered condition definitions.
 	 *
@@ -102,6 +111,42 @@ class BumpMint_Conditions {
 	}
 
 	/**
+	 * Returns the supported location targeting modes.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function get_location_modes() {
+		return array(
+			self::LOCATION_ALL      => __( 'All locations', 'bumpmint-order-bump-for-woocommerce' ),
+			self::LOCATION_SPECIFIC => __( 'Specific locations', 'bumpmint-order-bump-for-woocommerce' ),
+		);
+	}
+
+	/**
+	 * Returns the supported location matching operators.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function get_location_operators() {
+		return array(
+			self::LOCATION_INCLUDE => __( 'Available in selected locations', 'bumpmint-order-bump-for-woocommerce' ),
+			self::LOCATION_EXCLUDE => __( 'Unavailable in selected locations', 'bumpmint-order-bump-for-woocommerce' ),
+		);
+	}
+
+	/**
+	 * Returns the supported behaviors for an unresolved customer location.
+	 *
+	 * @return array<string,string>
+	 */
+	public static function get_location_unknown_behaviors() {
+		return array(
+			self::LOCATION_UNKNOWN_HIDE => __( 'Hide the offer until location is known', 'bumpmint-order-bump-for-woocommerce' ),
+			self::LOCATION_UNKNOWN_SHOW => __( 'Show the offer', 'bumpmint-order-bump-for-woocommerce' ),
+		);
+	}
+
+	/**
 	 * Evaluates a rule against the current cart.
 	 *
 	 * @param array        $rule Rule data.
@@ -115,6 +160,10 @@ class BumpMint_Conditions {
 		}
 
 		if ( ! self::matches_customer( $rule ) ) {
+			return false;
+		}
+
+		if ( ! self::matches_location( $rule ) ) {
 			return false;
 		}
 
@@ -173,6 +222,200 @@ class BumpMint_Conditions {
 		$user_roles     = self::sanitize_role_slugs( $user->roles );
 
 		return ! empty( $selected_roles ) && ! empty( array_intersect( $selected_roles, $user_roles ) );
+	}
+
+	/**
+	 * Evaluates country and optional state/region targeting.
+	 *
+	 * WooCommerce's current shipping location is preferred. Billing is used
+	 * when shipping is unavailable, and can supply a missing state when both
+	 * addresses use the same country. No address or IP data is persisted here.
+	 *
+	 * @param array            $rule     Rule data.
+	 * @param WC_Customer|null $customer Optional customer for deterministic tests.
+	 * @return bool
+	 */
+	public static function matches_location( array $rule, $customer = null ) {
+		$mode = isset( $rule['location_mode'] ) && is_scalar( $rule['location_mode'] )
+			? sanitize_key( (string) $rule['location_mode'] )
+			: self::LOCATION_ALL;
+
+		if ( self::LOCATION_ALL === $mode ) {
+			return true;
+		}
+
+		if ( self::LOCATION_SPECIFIC !== $mode ) {
+			return false;
+		}
+
+		$operator = isset( $rule['location_operator'] ) && is_scalar( $rule['location_operator'] )
+			? sanitize_key( (string) $rule['location_operator'] )
+			: self::LOCATION_INCLUDE;
+		if ( ! in_array( $operator, array( self::LOCATION_INCLUDE, self::LOCATION_EXCLUDE ), true ) ) {
+			return false;
+		}
+
+		$unknown_behavior = isset( $rule['location_unknown_behavior'] ) && is_scalar( $rule['location_unknown_behavior'] )
+			? sanitize_key( (string) $rule['location_unknown_behavior'] )
+			: self::LOCATION_UNKNOWN_HIDE;
+		if ( ! in_array( $unknown_behavior, array( self::LOCATION_UNKNOWN_HIDE, self::LOCATION_UNKNOWN_SHOW ), true ) ) {
+			$unknown_behavior = self::LOCATION_UNKNOWN_HIDE;
+		}
+
+		$country_codes = isset( $rule['location_country_codes'] )
+			? self::sanitize_location_country_codes( $rule['location_country_codes'] )
+			: array();
+		$state_codes   = isset( $rule['location_state_codes'] )
+			? self::sanitize_location_state_codes( $rule['location_state_codes'], $country_codes )
+			: array();
+
+		if ( empty( $country_codes ) ) {
+			return false;
+		}
+
+		$location = self::get_customer_location( $customer );
+		if ( '' === $location['country'] ) {
+			return self::LOCATION_UNKNOWN_SHOW === $unknown_behavior;
+		}
+
+		$matches_selected = in_array( $location['country'], $country_codes, true );
+		if ( $matches_selected ) {
+			$country_states = array();
+			$prefix         = $location['country'] . ':';
+			foreach ( $state_codes as $state_code ) {
+				if ( 0 === strpos( $state_code, $prefix ) ) {
+					$country_states[] = $state_code;
+				}
+			}
+
+			if ( ! empty( $country_states ) ) {
+				if ( '' === $location['state'] ) {
+					return self::LOCATION_UNKNOWN_SHOW === $unknown_behavior;
+				}
+
+				$matches_selected = in_array( $prefix . $location['state'], $country_states, true );
+			}
+		}
+
+		return self::LOCATION_INCLUDE === $operator ? $matches_selected : ! $matches_selected;
+	}
+
+	/**
+	 * Resolves the current WooCommerce customer location without persisting it.
+	 *
+	 * @param WC_Customer|null $customer Optional customer object.
+	 * @return array{country:string,state:string}
+	 */
+	private static function get_customer_location( $customer = null ) {
+		if ( ! $customer instanceof WC_Customer ) {
+			$customer = function_exists( 'WC' ) && WC()->customer instanceof WC_Customer
+				? WC()->customer
+				: null;
+		}
+
+		if ( ! $customer ) {
+			return array(
+				'country' => '',
+				'state'   => '',
+			);
+		}
+
+		$shipping_country = self::sanitize_location_country_code( $customer->get_shipping_country() );
+		$shipping_state   = self::sanitize_location_state_code( $customer->get_shipping_state() );
+		$billing_country  = self::sanitize_location_country_code( $customer->get_billing_country() );
+		$billing_state    = self::sanitize_location_state_code( $customer->get_billing_state() );
+
+		if ( '' !== $shipping_country ) {
+			if ( '' === $shipping_state && $shipping_country === $billing_country ) {
+				$shipping_state = $billing_state;
+			}
+
+			return array(
+				'country' => $shipping_country,
+				'state'   => $shipping_state,
+			);
+		}
+
+		return array(
+			'country' => $billing_country,
+			'state'   => $billing_state,
+		);
+	}
+
+	/**
+	 * Sanitizes ISO-style country codes.
+	 *
+	 * @param mixed $country_codes Country code or list of country codes.
+	 * @return array
+	 */
+	private static function sanitize_location_country_codes( $country_codes ) {
+		$country_codes = is_array( $country_codes ) ? $country_codes : array( $country_codes );
+		$sanitized     = array();
+
+		foreach ( $country_codes as $country_code ) {
+			$country_code = self::sanitize_location_country_code( $country_code );
+			if ( '' !== $country_code ) {
+				$sanitized[] = $country_code;
+			}
+		}
+
+		return array_values( array_unique( $sanitized ) );
+	}
+
+	/**
+	 * Sanitizes composite country:state targeting codes.
+	 *
+	 * @param mixed $state_codes   State code or list of state codes.
+	 * @param array $country_codes Allowed country codes for this rule.
+	 * @return array
+	 */
+	private static function sanitize_location_state_codes( $state_codes, array $country_codes ) {
+		$state_codes = is_array( $state_codes ) ? $state_codes : array( $state_codes );
+		$sanitized   = array();
+
+		foreach ( $state_codes as $state_code ) {
+			if ( ! is_scalar( $state_code ) ) {
+				continue;
+			}
+
+			$parts   = explode( ':', (string) $state_code, 2 );
+			$country = self::sanitize_location_country_code( isset( $parts[0] ) ? $parts[0] : '' );
+			$state   = self::sanitize_location_state_code( isset( $parts[1] ) ? $parts[1] : '' );
+			if ( '' !== $country && '' !== $state && in_array( $country, $country_codes, true ) ) {
+				$sanitized[] = $country . ':' . $state;
+			}
+		}
+
+		return array_values( array_unique( $sanitized ) );
+	}
+
+	/**
+	 * Sanitizes one country code.
+	 *
+	 * @param mixed $country_code Country code.
+	 * @return string
+	 */
+	private static function sanitize_location_country_code( $country_code ) {
+		if ( ! is_scalar( $country_code ) ) {
+			return '';
+		}
+
+		$country_code = strtoupper( trim( (string) $country_code ) );
+		return preg_match( '/^[A-Z]{2}$/', $country_code ) ? $country_code : '';
+	}
+
+	/**
+	 * Sanitizes one state or region code.
+	 *
+	 * @param mixed $state_code State code.
+	 * @return string
+	 */
+	private static function sanitize_location_state_code( $state_code ) {
+		if ( ! is_scalar( $state_code ) ) {
+			return '';
+		}
+
+		return substr( sanitize_key( (string) $state_code ), 0, 40 );
 	}
 
 	/**

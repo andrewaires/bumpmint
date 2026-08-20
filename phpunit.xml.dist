@@ -16,6 +16,7 @@
 			<file>tests/test-scheduling.php</file>
 			<file>tests/test-rule-status.php</file>
 			<file>tests/test-customer-targeting.php</file>
+			<file>tests/test-location-targeting.php</file>
 			<file>tests/test-analytics.php</file>
 		</testsuite>
 	</testsuites>
