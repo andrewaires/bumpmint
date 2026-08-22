@@ -2,24 +2,24 @@
 
 ![BumpMint banner](.wordpress-org/banner-1544x500.png)
 
-BumpMint is a lightweight WooCommerce order bump and checkout upsell plugin. Show targeted add-ons in classic checkout and Checkout Blocks, protect promotional pricing on the server, schedule campaigns, and measure paid results locally.
+BumpMint is a lightweight WooCommerce plugin for creating order bumps and checkout upsells that help increase average order value. Display relevant offers, add custom discounts, schedule campaigns, and track paid results locally.
 
 [WordPress.org](https://wordpress.org/plugins/bumpmint-order-bump-for-woocommerce/) · [Releases](https://github.com/andrewaires/bumpmint/releases) · [Support](https://wordpress.org/support/plugin/bumpmint-order-bump-for-woocommerce/) · [Report an issue](https://github.com/andrewaires/bumpmint/issues)
 
-## Turn checkout intent into higher-value orders
+## Maximize every sale! Turn purchase intent into higher-value orders.
 
-Present relevant products while customers are ready to complete their purchase. BumpMint helps stores launch focused checkout offers without adding a heavyweight funnel builder or sending report data to an external service.
+Display elegant, relevant offers while customers complete their purchase and let them add more products to their order with just one click. BumpMint helps stores make the most of checkout without adding another step to the buying process or sending Analytics data to external services.
 
-### Why BumpMint
+### Why stores choose BumpMint
 
-- Target products, variations, categories, cart subtotal, item quantity, customer audiences, locations, or applied coupons.
-- Offer multiple independently selectable products with fixed or percentage discounts.
-- Schedule campaigns for dates, recurring weekdays, and optional time ranges.
-- Limit discounted quantities and hide products already present in the cart.
-- Customize the banner, image, title, description, and dynamic `{product}` and `{price}` placeholders.
-- Support classic checkout, Checkout Blocks, and eligible WooCommerce Bookings products.
-- Track views, paid conversions, conversion rate, net bump revenue, and top-performing campaigns locally.
-- Keep eligibility, stock, quantity, and final pricing validated on the server.
+- Sell more with one click by adding relevant products directly at checkout without sending customers through another funnel.
+- Set your store apart from other WooCommerce stores with a distinctive checkout experience and relevant, personalized offers.
+- Use all advanced BumpMint features without a premium plan or any extra cost.
+- Show the right offer by targeting products, variations, categories, cart value, item quantity, customer audiences, locations, or applied coupons.
+- Run campaigns at the right time with scheduling by date, weekday, and time range.
+- Stay true to your brand by customizing the banner, image, title, description, and dynamic `{product}` and `{price}` placeholders.
+- Know what converts by tracking views, paid conversions, conversion rate, and net order bump revenue locally.
+- Add extra safeguards by validating discounts, stock, eligibility, quantity limits, and final pricing directly on the server.
 
 ## See BumpMint in action
 
@@ -113,9 +113,9 @@ Report data remains in the WordPress database. BumpMint does not store names, em
 - **Custom presentation:** Edit the banner, image, title, description, and placeholders.
 - **Server-side safeguards:** Validate eligibility, products, stock, quantities, and prices.
 - **Cart synchronization:** Remove only BumpMint lines that lose eligibility.
-- **Local Analytics:** Track views, conversions, conversion rate, revenue, and top bumps.
-- **Report filters:** Compare results by date, weekday, hour, bump, and currency.
-- **WooCommerce reconciliation:** Follow payment, cancellation, and refund status.
+- **Local Analytics:** Track views, conversions, conversion rate, revenue, and top-performing bumps.
+- **Report filters:** Compare results by date, weekday, hour, order bump, and currency.
+- **WooCommerce reconciliation:** Track payments, cancellations, and refunds.
 - **Private report data:** Store reports locally and reset them without deleting store records.
 - **WooCommerce compatibility:** Support HPOS and compatible classic-checkout widgets.
 - **Lightweight responsive assets:** Load focused CSS and JavaScript only where needed.
@@ -139,7 +139,7 @@ BumpMint displays offers during checkout and intentionally has no Cart Block off
 
 ## Installation
 
-Install **BumpMint** from **Plugins > Add New** in WordPress, activate it, and open **Order Bumps** to create your first campaign. The official package is also available from [GitHub Releases](https://github.com/andrewaires/bumpmint/releases).
+Install **BumpMint** from **Plugins > Add New Plugin** in WordPress, upload the official ZIP from **Upload Plugin**, or upload the extracted `bumpmint-order-bump-for-woocommerce` folder to `/wp-content/plugins/` via FTP or a file manager. Activate the plugin, make sure WooCommerce is active, and open **Order Bumps** to create your first campaign. The official package is also available from [GitHub Releases](https://github.com/andrewaires/bumpmint/releases).
 
 ## Local integration tests
 

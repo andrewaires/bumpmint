@@ -1,6 +1,14 @@
 BumpMint - Complete Changelog
 =============================
 
+1.7.0 - 2026-08-22
+------------------
+- Added active and inactive campaign controls without deleting saved settings or Analytics history.
+- Added customer targeting for everyone, logged-in users, logged-out visitors, and selected WordPress roles.
+- Added location targeting for WooCommerce selling countries and optional states or regions, with include/exclude matching and configurable behavior when the location is unknown.
+- Added coupon targeting for any applied coupon or selected published WooCommerce coupons.
+- Applied customer, location, and coupon requirements across classic checkout and Checkout Blocks with centralized server-side validation and automatic removal of no-longer-eligible BumpMint lines.
+
 1.6.1 - 2026-08-18
 ------------------
 - Fixed WooCommerce price entities appearing as encoded text in Checkout Block offer badges, titles, and descriptions.
