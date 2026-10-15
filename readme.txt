@@ -6,65 +6,65 @@ Tested up to: 7.1
 Requires PHP: 7.4
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 1.7.0
+Stable tag: 1.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Increase WooCommerce average order value with checkout order bumps and upsells. Offer custom discounts and display scheduled offers.
+Increase WooCommerce order value with checkout order bumps and upsells, custom discounts, and scheduled offers.
 
 == Description ==
 
-### Maximize every sale! Turn purchase intent into higher-value orders.
+### Make every sale count. Turn purchase intent into higher-value orders.
 
-**BumpMint is a lightweight plugin for creating Order Bumps and Upsells that help WooCommerce stores increase average order value**. Display elegant, relevant offers while customers complete their purchase and let them add more products to their order with just one click.
+**BumpMint is a lightweight plugin for creating order bumps and upsells that help WooCommerce stores increase average order value**. Display elegant, relevant offers while customers complete their purchase and let them add more products to their order with just one click.
 
-Easily create multiple campaigns and target each offer based on the current cart, apply an exclusive discount, control when it is available, and discover which order bumps generate more sales for your store.
+Easily create multiple campaigns, tailor each offer to the current cart, add an exclusive discount, choose when it runs, and discover which order bumps bring in more sales for your store.
 
-**Build a more strategic checkout** — Getting a new customer all the way to checkout takes effort, so BumpMint helps your store make the most of that moment by displaying relevant offers that can increase order value without adding another step to the buying process.
+**Make checkout work harder for your store** — Getting a new customer to checkout takes effort. BumpMint helps you make the most of that moment with relevant offers that can increase order value without adding another step to the buying process.
 
 ### Why stores choose BumpMint
 
 * **Sell more with one click** — Add relevant products directly at checkout without sending customers through another funnel.
-* **Set your store apart from other WooCommerce stores** — Turn the standard checkout into a distinctive experience with relevant, personalized offers at the moment of purchase.
-* **Tired of paying for premium features?** — Use all of our advanced features without a premium plan or any extra cost. Get a complete feature set entirely free to help your store sell more.
+* **Set your WooCommerce store apart** — Turn a standard checkout into a distinctive experience with relevant, personalized offers at the moment of purchase.
+* **Tired of paying for premium features?** — Use all our advanced features without a premium plan or extra charges. BumpMint gives you a complete set of tools, entirely free, to help your store sell more.
 * **Show the right offer** — Target products, variations, categories, cart value, item quantity, customer audiences, locations, or applied coupons.
 * **Run campaigns at the right time** — Schedule offers by date, weekday, and time range.
-* **Stay true to your brand** — Customize the banner, image, title, description, and dynamic price or product text.
-* **Know what converts** — Track views, paid conversions, conversion rate, and net order bump revenue in an Analytics dashboard.
-* **Extra security for your orders** — Discounts, stock, eligibility, and quantity limits are securely validated directly on the server.
+* **Stay true to your brand** — Customize the banner, image, title, description, and dynamic product or price text.
+* **Know what converts** — Track views, paid conversions, conversion rate, and net order bump revenue in a local Analytics dashboard.
+* **Add extra protection to your orders** — Validate discounts, stock, eligibility, and quantity limits securely on the server.
 
-### Show the offer at the right time
+### Target the right cart at the right moment
 
 Display an order bump when:
 
 * One or more selected products are in the cart.
 * A product belongs to a selected category.
-* The cart subtotal or item quantity is greater or less than a defined value.
+* The cart subtotal or item quantity is above or below a set value.
 * The customer is logged in or logged out.
-* Users have specific roles, such as customers, subscribers, or other registered roles.
+* The user has a specific role, such as customer, subscriber, or another registered role.
 * The customer's country, state, or region matches the configured locations.
-* The current date falls on a selected weekday or matches a specific date.
-* The current time falls within the configured time range.
-* Any of the selected WooCommerce coupons is applied.
+* The current day matches selected weekdays or dates.
+* The offer is within its configured time range.
+* Any one of the selected WooCommerce coupons is applied.
 
-Product and category triggers can work together, and category-only campaigns are also supported. Add a schedule for specific dates, recurring weekdays, or a time range in the WordPress site timezone. BumpMint excludes its own products from subtotal and quantity rules so an offer cannot trigger itself.
+Product and category triggers can work together, and campaigns can also use categories alone. Add a schedule for specific dates, recurring weekdays, or a time range in the WordPress site timezone. BumpMint excludes its own products from subtotal and quantity rules so an offer cannot trigger itself.
 
-Customer targeting can include everyone, logged-in users, logged-out visitors, or specific WordPress roles. Location targeting uses WooCommerce's current shipping country and region, with billing as a fallback. Select entire countries or narrow individual countries to states or regions, and choose whether an offer remains hidden or visible while the location is unknown.
+Customer targeting can include everyone, logged-in users, logged-out visitors, or specific WordPress roles. Location targeting uses WooCommerce's current shipping country and region, with the billing address as a fallback. Select whole countries or narrow individual countries to states or regions, and choose whether an offer stays hidden or visible while the location is unknown.
 
-Coupon targeting can require any valid coupon currently applied to the cart or any one of the selected published WooCommerce coupons. Coupon requirements combine with the cart, customer, location, and schedule settings. Coupon discount compatibility continues to follow WooCommerce rules.
+Coupon targeting can require any valid coupon currently applied to the cart or one of the selected published WooCommerce coupons. Coupon requirements combine with cart, customer, location, and schedule rules. Coupon discount compatibility continues to follow WooCommerce rules.
 
 ### Create compelling offers without losing control
 
-Offer one or more simple products, specific purchasable variations, or supported bookable products as independently selectable add-ons. You can:
+Offer one or more simple products, specific purchasable variations, or supported bookable products as add-ons that customers can select independently. You can:
 
 * Apply a fixed or percentage discount.
 * Limit how many units receive the discounted price.
 * Hide an offered product when it is already in the cart.
-* Show the original and offer prices together.
+* Display the original and offer prices together.
 * Use a custom promotional banner, image, title, and description.
-* Insert dynamic `{product}` and `{price}` placeholders.
+* Insert the dynamic placeholders `{product}` and `{price}`.
 
-Prices are calculated from the effective WooCommerce price and enforced on the server. If a rule stops matching, BumpMint removes only the cart line created by that offer and preserves independently added products.
+Prices are calculated from the effective WooCommerce price and enforced on the server. If a rule stops matching, BumpMint removes only the cart item created by that offer and preserves products added independently.
 
 ### Complete Feature Overview
 
@@ -85,6 +85,8 @@ Prices are calculated from the effective WooCommerce price and enforced on the s
 * **Checkout Blocks:** Display offers below the block order summary.
 * **WooCommerce Bookings:** Use the native form for supported bookable products.
 * **Custom presentation:** Edit the banner, image, title, description, and placeholders.
+* **Visual customization:** Adjust colors, fonts, sizes, spacing, borders, shadows, and images without writing CSS.
+* **Live preview:** See changes as you edit and simulate offer widths and states.
 * **Server-side safeguards:** Validate eligibility, products, stock, quantities, and prices.
 * **Cart synchronization:** Remove only BumpMint lines that lose eligibility.
 * **Local Analytics:** Track views, conversions, conversion rate, revenue, and top-performing bumps.
@@ -100,20 +102,20 @@ The **Order Bumps > Analytics** dashboard shows:
 
 * Views and currently valid paid conversions.
 * Conversion rate and net order bump revenue.
-* Top-performing order bump.
+* The top-performing order bump.
 * Results by date, weekday, hour, campaign, and currency.
 
-Conversions follow the current WooCommerce paid status, normally **Processing** or **Completed**. Cancellations, failed payments, and order bump refunds update the report automatically. Revenue excludes taxes and shipping, and reporting starts only after Analytics is installed.
+Conversions follow WooCommerce's current paid status, normally **Processing** or **Completed**. Cancellations, failed payments, and order bump refunds update reports automatically. Revenue excludes taxes and shipping, and tracking begins only after Analytics is installed.
 
-Analytics data stays in the WordPress database. BumpMint does not store customer names, email addresses, IP addresses, or browser data in its report tables and does not send that data to third parties. Administrators can reset reports without deleting products, rules, or WooCommerce orders.
+Analytics data stays in your WordPress database. BumpMint does not store customer names, email addresses, IP addresses, or browser data in its report tables and does not send that data to third parties. Administrators can reset reports without deleting products, rules, or WooCommerce orders.
 
 ### Classic checkout, Checkout Blocks, and WooCommerce Bookings
 
-BumpMint works with WooCommerce classic checkout and Checkout Blocks, and provides native configuration for supported WooCommerce Bookings products.
+BumpMint works with WooCommerce classic checkout and Checkout Blocks, with native configuration for supported WooCommerce Bookings products.
 
-Classic checkout supports four positions: before or after order items, before payment methods, or before the **Place order** button. Checkout Blocks display eligible offers below the order summary through WooCommerce's Store API integration.
+Classic checkout offers four positions: before or after order items, before payment methods, or before the Place order button. In Checkout Blocks, eligible offers appear below the order summary through WooCommerce's Store API integration.
 
-Supported WooCommerce Bookings products use their native product form for dates, availability, resources, and people. After configuration, the customer returns to checkout and receives the order bump discount on the booking price calculated by WooCommerce. Bookings that require confirmation use a separate purchase flow and are not offered.
+Supported WooCommerce Bookings products use the native product form to choose dates, availability, resources, and persons. After configuration, the customer returns to checkout and receives the order bump discount on the booking price calculated by WooCommerce. Bookings that require confirmation use a separate purchase flow and are not offered.
 
 ### Compatibility
 
@@ -129,20 +131,20 @@ BumpMint displays offers during checkout and intentionally has no Cart Block off
 
 == Installation ==
 
-### Installation from the WordPress dashboard
+### Install from your WordPress dashboard
 
 1. Go to **Plugins > Add New Plugin**.
 2. Search for **BumpMint** and click **Install Now**.
-3. After installation, click **Activate**.
+3. Once installed, click **Activate**.
 
-### Installation with the ZIP file
+### Install from a ZIP file
 
 1. Download the official BumpMint package.
 2. Go to **Plugins > Add New Plugin > Upload Plugin**.
 3. Select the ZIP file without extracting it.
-4. Click **Install Now**, then click **Activate**.
+4. Click **Install Now**, then **Activate**.
 
-### Installation via FTP or file manager
+### Install via FTP or a file manager
 
 1. Extract the ZIP file.
 2. Upload the `bumpmint-order-bump-for-woocommerce` folder to `/wp-content/plugins/`.
@@ -154,53 +156,59 @@ After activation, make sure WooCommerce is active and open **Order Bumps** to cr
 
 = How many campaigns can I create? =
 
-You can create as many campaigns as you like. Unlike other plugins, BumpMint does not limit the number of campaigns or offered products.
+Create as many campaigns as you need. Unlike plugins with campaign caps, BumpMint does not limit the number of campaigns or offered products.
 
-= Can one campaign contain multiple products or variations? =
+= Can one campaign offer multiple products or variations? =
 
-Yes. Add one or more simple products or specific purchasable variations. Each offer is displayed separately so customers can accept one or more products.
+Yes. Add one or more simple products or specific purchasable variations. Each offer appears separately, so customers can accept one or more products.
 
 = Can I schedule an order bump? =
 
-Yes. Run it every day, on specific calendar dates, or on recurring weekdays. You can also set a time range based on the WordPress site timezone, including ranges that continue past midnight.
+Yes. Run it every day, on selected calendar dates, or on recurring weekdays. You can also set a time range in the WordPress site timezone, including ranges that continue past midnight.
 
 = Which conditions can trigger an order bump? =
 
-Use any or all selected products, product categories, cart subtotal, cart item quantity, or **Always show**. Category-only rules are also supported, and every condition can be combined with customer, location, coupon, and availability targeting.
+Use any or all selected products, product categories, cart subtotal, cart item quantity, or **Always show**. You can also create category-only rules and combine any condition with customer, location, coupon, and availability targeting.
 
 = How does location targeting work? =
 
-Choose countries from the locations where your WooCommerce store sells, optionally narrow individual countries to selected states or regions, and include or exclude those locations. BumpMint prioritizes the current shipping address and falls back to billing. You can hide or show the offer until WooCommerce knows enough of the address to evaluate the rule.
+Choose countries from the locations where your WooCommerce store sells, optionally narrow individual countries to selected states or regions, and include or exclude those locations. BumpMint prioritizes the current shipping address and falls back to billing. You can hide or show the offer until WooCommerce has enough address information to evaluate the rule.
 
 = Can an applied coupon control an order bump? =
 
-Yes. An offer can require any valid coupon currently applied to the cart or any one of the selected published WooCommerce coupons. This controls offer eligibility only; whether coupon and order bump discounts combine follows the coupon settings and WooCommerce rules.
+Yes. An offer can require any valid coupon currently applied to the cart or one of the selected published WooCommerce coupons. This controls offer eligibility only; combining coupon and order bump discounts still follows the coupon settings and WooCommerce rules.
 
 = Can I sell courses? =
 
-Yes. Courses, digital products, and info products can be offered when they are set up in WooCommerce as simple products or specific purchasable variations. BumpMint handles the checkout offer; enrollment, file delivery, and content access depend on WooCommerce or the course plugin you use.
+Yes. Courses, digital products, and information products can be offered when they are set up as simple products or specific purchasable variations in WooCommerce. BumpMint handles the checkout offer; enrollment, file delivery, and content access depend on WooCommerce or your course plugin.
 
 = Is the plugin lightweight? =
 
-Yes. BumpMint loads its checkout assets only where needed and uses native WordPress and WooCommerce APIs. Analytics data stays in the store's database and does not load external tracking services or charting libraries.
+Yes. BumpMint loads its checkout assets only where needed and uses native WordPress and WooCommerce APIs. Analytics stays in your store's database and loads no external tracking services or chart libraries.
+
+The design editor and its preview load only on campaign creation and editing screens. Visual preview changes happen in the browser, without a request for every adjustment. Your store uses the shared card stylesheet and server-validated design values, without loading the editor at checkout.
+
+= Can I customize the design of each campaign? =
+
+Yes. The **Design** tab brings together offer content, six ready-made styles, and controls for colors, typography, spacing, borders, shadows, and images. All products in a campaign share its chosen design, while different campaigns can have different looks. Existing campaigns default to the Classic style, with saved text and images preserved.
 
 = Does BumpMint support classic checkout and Checkout Blocks? =
 
-Yes. Classic checkout provides four configurable positions. Checkout Blocks display offers below the order summary. BumpMint does not display offers on the cart page.
+Yes. Classic checkout offers four configurable positions. In Checkout Blocks, offers appear below the order summary. BumpMint does not display offers on the cart page.
 
 = Does BumpMint support WooCommerce Bookings? =
 
-Yes, for bookable products that do not require confirmation. Customers use the native product form to choose required options and then return to checkout with the BumpMint discount applied to the calculated booking price.
+Yes, for bookable products that do not require confirmation. Customers use the native product form to choose required options, then return to checkout with the BumpMint discount applied to the calculated booking price.
 
 = How are discounts and quantity limits protected? =
 
-BumpMint validates the saved campaign, current cart, product, stock, price, and quantity on the server. Fixed and percentage discounts use the effective WooCommerce price, and the default discounted quantity limit is one unit, although the administrator can set a higher limit. This server-side validation adds an extra layer of security when customers place their orders.
+BumpMint validates the saved campaign, current cart, product, stock, price, and quantity on the server. Fixed and percentage discounts use the effective WooCommerce price. The default discounted quantity limit is one unit, and administrators can set a higher limit. Server-side validation adds an extra layer of protection when customers place an order.
 
 = What does Analytics count? =
 
-Analytics tracks order bump views, currently valid paid conversions, conversion rate, and net product revenue after applicable refunds. Taxes, shipping, and orders placed before tracking began are excluded. Report data stays in WordPress and can be reset by an administrator.
+Analytics tracks order bump views, paid conversions that remain valid, conversion rate, and net product revenue after applicable refunds. Taxes, shipping, and orders placed before tracking began are excluded. Report data stays in WordPress and can be reset by an administrator.
 
-= Is BumpMint compatible with HPOS? =
+= Does BumpMint support HPOS? =
 
 Yes. BumpMint declares compatibility with WooCommerce High-Performance Order Storage (HPOS).
 
@@ -210,38 +218,46 @@ Use the [WordPress.org support forum](https://wordpress.org/support/plugin/bumpm
 
 == Screenshots ==
 
-1. A targeted fixed-discount order bump selected in WooCommerce classic checkout.
+1. A targeted order bump with a fixed discount, selected in WooCommerce classic checkout.
 2. Eligible order bump offers displayed below the order summary in WooCommerce Checkout Blocks.
 3. Multiple independently selectable order bump products in classic checkout.
 4. Local Analytics overview with views, paid conversions, conversion rate, net revenue, top-performing bump, and performance over time.
-5. Analytics breakdown by weekday, hour, and individual order bump.
-6. WordPress-native campaign management with rules, schedules, status, price, and checkout position.
-7. Create a product- or category-triggered order bump and choose its availability.
-8. Configure scheduling, offered products, classic checkout position, cart behavior, and discounts.
-9. Customize banner text, title, description, dynamic placeholders, and product image.
+5. Analytics breakdown by weekday, hour, and order bump.
+6. Native WordPress campaign management with rules, schedules, status, price, and checkout position.
+7. Creating a product- or category-triggered order bump with availability settings.
+8. Configuring scheduling, offered products, classic checkout position, in-cart behavior, and discounts.
+9. Customizing the banner text, title, description, dynamic placeholders, and product image.
 
 == Changelog ==
 
+= 1.8.0 - 2026-10-15 =
+* Added a Design tab to campaign creation and editing, separating offer settings from appearance controls.
+* Added six campaign styles: Classic, Minimal, Soft, Outline, Dark, and Compact, available in classic checkout and Checkout Blocks.
+* Added visual controls for colors, typography, spacing, borders, shadows, and image dimensions.
+* Added a live preview with offer width, state, and product-type simulations that stays visible while scrolling on wide screens.
+* Added resets for individual fields or the full style while preserving offer text and images.
+* Increased the default offer description font weight to 500, with customization available in the editor.
+
 = 1.7.0 - 2026-08-22 =
-* Added active and inactive campaign controls without deleting saved settings or Analytics history.
-* Added targeting for everyone, logged-in users, logged-out visitors, and selected WordPress roles.
-* Added country and state or region targeting with include/exclude matching and configurable behavior for unknown locations.
+* Added controls to activate and deactivate campaigns without deleting saved settings or Analytics history.
+* Added customer targeting for everyone, logged-in users, logged-out visitors, and selected WordPress roles.
+* Added country and state or region targeting, with include/exclude matching and configurable behavior for unknown locations.
 * Added targeting based on any applied coupon or selected published WooCommerce coupons.
-* Applied customer, location, and coupon requirements across classic checkout and Checkout Blocks with server-side validation.
+* Applied customer, location, and coupon requirements in classic checkout and Checkout Blocks with server-side validation.
 
 = 1.6.1 - 2026-08-18 =
 * Fixed WooCommerce price entities appearing as encoded text in Checkout Block offer badges, titles, and descriptions.
-* Refreshed the WordPress.org and GitHub presentation with concise documentation and current screenshots.
+* Refreshed the WordPress.org and GitHub presentation with clearer documentation and current screenshots.
 
 = 1.6.0 - 2026-08-18 =
-* Added native WooCommerce Bookings offers using the product's date and options form before returning customers to checkout.
-* Applied discounts to the booking cost calculated by WooCommerce and kept configured bookings removable in classic checkout and Checkout Blocks.
+* Added native WooCommerce Bookings offers that use the product's date and options form before returning customers to checkout.
+* Applied discounts to the booking price calculated by WooCommerce and kept configured bookings removable in classic checkout and Checkout Blocks.
 * Added signed, session-bound handoffs with server-side validation.
 * Verified compatibility with WordPress 7.1.
 
 = 1.5.0 - 2026-08-11 =
-* Added local Analytics with period, order bump, and currency filters.
+* Added local Analytics with date-range, order bump, and currency filters.
 * Added views, paid conversions, conversion rate, net order bump revenue, top-performing bump, and date, weekday, and hourly breakdowns.
-* Synchronized reports with current WooCommerce paid statuses and BumpMint line refunds while excluding taxes and shipping.
+* Synchronized reports with current paid WooCommerce order statuses and order bump line refunds, excluding taxes and shipping.
 
 See the [complete changelog](https://github.com/andrewaires/bumpmint/blob/main/changelog.txt) for earlier releases.

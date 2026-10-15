@@ -87,6 +87,13 @@
 		var feedback = props.feedback[ offerKey ] || '';
 		var cardRef = useRef( null );
 		var requiresConfiguration = !! offer.requires_configuration && ! offer.selected;
+		var design = offer.design && typeof offer.design === 'object' ? offer.design : {};
+		var preset = [ 'classic', 'minimal', 'soft', 'outline', 'dark', 'compact' ].indexOf( design.preset ) !== -1
+			? design.preset
+			: 'classic';
+		var cssVariables = design.css_variables && typeof design.css_variables === 'object' && ! Array.isArray( design.css_variables )
+			? design.css_variables
+			: {};
 
 		useEffect( function () {
 			var card = cardRef.current;
@@ -144,9 +151,10 @@
 		return createElement(
 			'div',
 			{
-				className: 'bumpmint-bump-box' +
+				className: 'bumpmint-bump-box bumpmint-design-' + preset +
 					( isPending ? ' is-loading' : '' ) +
 					( requiresConfiguration ? ' is-configurable' : '' ),
+				style: cssVariables,
 				ref: cardRef,
 				'data-bumpmint-rule-id': offer.rule_id,
 			},

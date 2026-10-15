@@ -156,12 +156,7 @@ class BumpMint_Checkout {
 			return;
 		}
 
-		wp_enqueue_style(
-			'bumpmint-frontend',
-			BUMPMINT_PLUGIN_URL . 'assets/css/frontend.css',
-			array(),
-			BUMPMINT_VERSION
-		);
+		BumpMint_Design::enqueue_frontend_styles();
 
 		wp_enqueue_script(
 			'bumpmint-frontend',
@@ -813,65 +808,15 @@ class BumpMint_Checkout {
 	 * @param string|null $cart_item_key Matching cart item key when selected.
 	 */
 	private function render_card( array $rule, $product, $cart_item_key ) {
-		$view_data              = $this->get_offer_view_data( $rule, $product, $cart_item_key );
-		$rule_id                = $view_data['rule_id'];
-		$product_id             = $view_data['product_id'];
-		$is_checked             = $view_data['selected'];
-		$requires_configuration = ! $is_checked && ! empty( $view_data['requires_configuration'] );
-		$input_id               = 'bumpmint-bump-' . sanitize_html_class( $rule_id . '-' . $product_id );
-		$image_id               = ! empty( $rule['image_id'] ) ? absint( $rule['image_id'] ) : 0;
-		?>
-		<div
-			id="<?php echo esc_attr( $input_id ); ?>-card"
-			class="bumpmint-bump-box<?php echo $requires_configuration ? ' is-configurable' : ''; ?>"
-			data-bumpmint-rule-id="<?php echo esc_attr( $rule_id ); ?>">
-			<div class="bumpmint-badge"><?php echo esc_html( $view_data['badge'] ); ?></div>
-			<div class="bumpmint-bump-content">
-				<?php if ( $requires_configuration ) : ?>
-					<div class="bumpmint-bump-label">
-				<?php else : ?>
-					<label for="<?php echo esc_attr( $input_id ); ?>" class="bumpmint-bump-label">
-				<?php endif; ?>
-				<?php if ( ! $requires_configuration ) : ?>
-					<input
-						type="checkbox"
-						class="bumpmint-checkbox"
-						id="<?php echo esc_attr( $input_id ); ?>"
-						data-rule-id="<?php echo esc_attr( $rule_id ); ?>"
-						data-product-id="<?php echo esc_attr( $product_id ); ?>"
-						<?php checked( $is_checked, true ); ?>
-					/>
-				<?php endif; ?>
-					<?php
-					if ( $image_id ) {
-						echo wp_get_attachment_image( $image_id, 'thumbnail', false, array( 'class' => 'bumpmint-bump-image' ) );
-					} else {
-						echo $product->get_image( 'thumbnail', array( 'class' => 'bumpmint-bump-image' ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- WooCommerce escapes product image HTML.
-					}
-					?>
-					<span class="bumpmint-bump-copy">
-						<span class="bumpmint-bump-title"><?php echo esc_html( $view_data['title'] ); ?></span>
-						<span class="bumpmint-bump-price"><?php echo wp_kses_post( $view_data['price_html'] ); ?></span>
-					</span>
-				<?php if ( $requires_configuration ) : ?>
-					</div>
-				<?php else : ?>
-					</label>
-				<?php endif; ?>
+		$bumpmint_view_data = $this->get_offer_view_data( $rule, $product, $cart_item_key );
+		$bumpmint_input_id  = 'bumpmint-bump-' . sanitize_html_class( $bumpmint_view_data['rule_id'] . '-' . $bumpmint_view_data['product_id'] );
+		$image_id  = ! empty( $rule['image_id'] ) ? absint( $rule['image_id'] ) : 0;
+		$bumpmint_image_html = $image_id
+			? wp_get_attachment_image( $image_id, 'thumbnail', false, array( 'class' => 'bumpmint-bump-image' ) )
+			: $product->get_image( 'thumbnail', array( 'class' => 'bumpmint-bump-image' ) );
+		$bumpmint_is_preview = false;
 
-				<p class="bumpmint-bump-description"><?php echo esc_html( $view_data['description'] ); ?></p>
-				<?php if ( $requires_configuration && ! empty( $view_data['configuration_url'] ) ) : ?>
-					<div class="bumpmint-native-actions">
-						<a class="bumpmint-configure-button" href="<?php echo esc_url( $view_data['configuration_url'] ); ?>">
-							<?php echo esc_html( $view_data['configuration_label'] ); ?>
-						</a>
-						<p class="bumpmint-native-hint"><?php echo esc_html( $view_data['configuration_hint'] ); ?></p>
-					</div>
-				<?php endif; ?>
-				<p class="bumpmint-bump-feedback" role="status" aria-live="polite"></p>
-			</div>
-		</div>
-		<?php
+		include BUMPMINT_PLUGIN_DIR . 'includes/views/offer-card.php';
 	}
 
 	/**
@@ -933,6 +878,7 @@ class BumpMint_Checkout {
 			'price_html'             => wp_kses_post( BumpMint_Rules::get_price_html( $rule, $product, $effective_base_price ) ),
 			'image_url'              => $image_url,
 			'image_alt'              => $image_alt,
+			'design'                 => BumpMint_Design::get_render_data( isset( $rule['design'] ) ? $rule['design'] : null ),
 		);
 	}
 

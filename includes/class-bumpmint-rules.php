@@ -87,6 +87,23 @@ class BumpMint_Rules {
 			);
 		}
 
+		$design = $existing_rule
+			? BumpMint_Design::normalize_stored( isset( $existing_rule['design'] ) ? $existing_rule['design'] : null )
+			: BumpMint_Design::normalize_stored( null );
+		$design_present = isset( $data['design_present'] ) && is_scalar( $data['design_present'] ) && '1' === (string) $data['design_present'];
+		$design_touched = isset( $data['design_touched'] ) && is_scalar( $data['design_touched'] ) && '1' === (string) $data['design_touched'];
+		$is_future_design = isset( $design['version'] ) && is_scalar( $design['version'] ) && absint( $design['version'] ) > BumpMint_Design::VERSION;
+		// Supported editor fields also save without JavaScript; replacing a newer format requires an explicit change.
+		if ( $design_touched || ( $design_present && ! $is_future_design ) ) {
+			$design = BumpMint_Design::validate_submission(
+				isset( $data['design'] ) ? $data['design'] : null,
+				$existing_rule && isset( $existing_rule['design'] ) ? $existing_rule['design'] : null
+			);
+			if ( is_wp_error( $design ) ) {
+				return $design;
+			}
+		}
+
 		if ( isset( $data['status'] ) ) {
 			$status = is_scalar( $data['status'] ) ? sanitize_key( (string) $data['status'] ) : '';
 		} else {
@@ -583,6 +600,7 @@ class BumpMint_Rules {
 			'offer_title'           => isset( $data['offer_title'] ) ? sanitize_text_field( $data['offer_title'] ) : '',
 			'description'           => isset( $data['description'] ) ? sanitize_textarea_field( $data['description'] ) : '',
 			'image_id'              => isset( $data['image_id'] ) ? absint( $data['image_id'] ) : 0,
+			'design'                => $design,
 			'status'                => $status,
 			'created_at'            => $existing_rule && ! empty( $existing_rule['created_at'] )
 				? $existing_rule['created_at']
@@ -986,11 +1004,13 @@ class BumpMint_Rules {
 			'offer_title'           => isset( $rule['titulo'] ) ? sanitize_text_field( $rule['titulo'] ) : '',
 			'description'           => isset( $rule['descricao'] ) ? sanitize_textarea_field( $rule['descricao'] ) : '',
 			'image_id'              => isset( $rule['imagem_id'] ) ? absint( $rule['imagem_id'] ) : 0,
+			'design'                => BumpMint_Design::normalize_stored( isset( $rule['design'] ) ? $rule['design'] : null ),
 			'status'                => $status,
 			'created_at'            => current_time( 'mysql', true ),
 		);
 
 		$normalized = wp_parse_args( $rule, $defaults );
+		$normalized['design'] = BumpMint_Design::normalize_stored( isset( $rule['design'] ) ? $rule['design'] : null );
 		$normalized['condition_product_ids'] = $condition_product_ids;
 		$normalized['condition_category_enabled'] = BumpMint_Conditions::PRODUCT === $normalized['condition_type']
 			&& $condition_category_enabled

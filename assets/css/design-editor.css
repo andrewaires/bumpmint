@@ -1,0 +1,352 @@
+.bumpmint-rule-form.bumpmint-editor-enabled {
+	max-width: 1440px;
+}
+
+.bumpmint-editor-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 18px 0 0;
+	padding: 8px;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	background: #fff;
+}
+
+.bumpmint-editor-tabs a {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-height: 44px;
+	box-sizing: border-box;
+	padding: 10px 16px;
+	border: 1px solid transparent;
+	border-radius: 6px;
+	color: #50575e;
+	font-weight: 600;
+	text-decoration: none;
+}
+
+.bumpmint-editor-tabs a:hover {
+	background: #f0f6fc;
+	color: #135e96;
+}
+
+.bumpmint-editor-tabs a[data-bumpmint-tab="design"] {
+	border-color: #c5d9ed;
+	background: #f0f6fc;
+	color: #135e96;
+}
+
+.bumpmint-editor-tabs a[aria-selected="true"] {
+	border-color: #2271b1;
+	background: #2271b1;
+	color: #fff;
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.bumpmint-editor-tabs .dashicons {
+	flex: 0 0 18px;
+	width: 18px;
+	height: 18px;
+	font-size: 18px;
+}
+
+.bumpmint-editor-tab-badge {
+	padding: 3px 7px;
+	border-radius: 4px;
+	background: #dbeafe;
+	color: #135e96;
+	font-size: 11px;
+	line-height: 1.4;
+}
+
+.bumpmint-editor-tabs a[aria-selected="true"] .bumpmint-editor-tab-badge {
+	background: #fff;
+	color: #135e96;
+}
+
+.bumpmint-editor-tabs a:focus-visible {
+	box-shadow: none;
+	outline: 2px solid #1d2327;
+	outline-offset: 2px;
+}
+
+.bumpmint-tab-panel[hidden] {
+	display: none !important;
+}
+
+.bumpmint-tab-panel[data-bumpmint-panel="settings"] > .bumpmint-form-card:first-child {
+	margin-top: 18px;
+}
+
+.bumpmint-design-layout {
+	display: grid;
+	grid-template-columns: minmax(340px, 390px) minmax(0, 1fr);
+	align-items: start;
+	gap: 22px;
+	margin-top: 18px;
+}
+
+.bumpmint-design-controls {
+	min-width: 0;
+}
+
+.bumpmint-design-style-card {
+	padding-bottom: 18px;
+}
+
+.bumpmint-design-label {
+	display: block;
+	margin: 16px 0 6px;
+	font-weight: 600;
+}
+
+.bumpmint-design-preset {
+	width: 100%;
+	max-width: 100%;
+}
+
+.bumpmint-design-preset-description {
+	min-height: 2.7em;
+	margin: 8px 0 0;
+}
+
+.bumpmint-design-group {
+	margin-top: 14px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #fff;
+}
+
+.bumpmint-design-group > summary {
+	padding: 13px 16px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.bumpmint-design-group-fields {
+	padding: 0 16px 12px;
+	border-top: 1px solid #dcdcde;
+}
+
+.bumpmint-design-content-group .form-table {
+	width: 100%;
+	margin: 0;
+}
+
+.bumpmint-design-content-group .form-table tr {
+	display: block;
+	padding: 10px 0;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.bumpmint-design-content-group .form-table tr:last-child {
+	border-bottom: 0;
+}
+
+.bumpmint-design-content-group .form-table th,
+.bumpmint-design-content-group .form-table td {
+	display: block;
+	box-sizing: border-box;
+	width: 100%;
+	padding: 4px 0;
+}
+
+.bumpmint-design-content-group .regular-text,
+.bumpmint-design-content-group .large-text {
+	box-sizing: border-box;
+	width: 100%;
+	max-width: 100%;
+}
+
+.bumpmint-design-content-group .description {
+	margin: 5px 0 0;
+}
+
+.bumpmint-design-field {
+	padding: 12px 0;
+	border-bottom: 1px solid #f0f0f1;
+}
+
+.bumpmint-design-field:last-child {
+	border-bottom: 0;
+}
+
+.bumpmint-design-field > label {
+	display: block;
+	margin-bottom: 7px;
+	font-weight: 500;
+}
+
+.bumpmint-design-field-controls {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.bumpmint-design-color-picker {
+	flex: 0 0 42px;
+	width: 42px;
+	height: 34px;
+	padding: 2px;
+}
+
+.bumpmint-design-field-controls .regular-text {
+	min-width: 0;
+	width: 110px;
+}
+
+.bumpmint-design-field-controls .bumpmint-design-range {
+	flex: 1 1 auto;
+	min-width: 70px;
+}
+
+.bumpmint-design-unit {
+	color: #646970;
+}
+
+.bumpmint-design-reset-field {
+	flex: 0 0 auto;
+	margin-left: auto;
+}
+
+.bumpmint-design-reset-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	margin-top: 16px;
+}
+
+.bumpmint-design-reset-row .description {
+	margin: 4px 0 0;
+}
+
+.bumpmint-design-preview-column {
+	/* Give the sticky card the full controls-column height in which to travel. */
+	align-self: stretch;
+	min-width: 0;
+}
+
+.bumpmint-design-preview-card {
+	position: sticky;
+	top: calc(var(--wp-admin--admin-bar--height, 0px) + 12px);
+	box-sizing: border-box;
+	max-height: calc(100vh - var(--wp-admin--admin-bar--height, 0px) - 24px);
+	max-height: calc(100dvh - var(--wp-admin--admin-bar--height, 0px) - 24px);
+	overflow-y: auto;
+	padding: 18px;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	background: #fff;
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.bumpmint-design-preview-card > h2 {
+	margin: 0;
+	font-size: 16px;
+}
+
+.bumpmint-design-preview-card > .description {
+	margin: 6px 0 12px;
+}
+
+.bumpmint-preview-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 14px;
+	margin-bottom: 12px;
+}
+
+.bumpmint-preview-options label {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.bumpmint-preview-options select {
+	max-width: 150px;
+	font-size: 12px;
+}
+
+.bumpmint-preview-frame-holder {
+	display: flex;
+	justify-content: center;
+	min-height: 180px;
+	padding: 8px;
+	border: 1px solid #dcdcde;
+	background: #f6f7f7;
+}
+
+.bumpmint-preview-frame-holder iframe {
+	display: block;
+	flex: 0 1 auto;
+	border: 0;
+	background: #fff;
+}
+
+.bumpmint-preview-placeholder {
+	align-self: center;
+	max-width: 320px;
+	color: #646970;
+	text-align: center;
+}
+
+.bumpmint-preview-disclaimer {
+	margin: 10px 0 0;
+}
+
+.bumpmint-design-version-notice {
+	margin: 18px 0 0;
+}
+
+@media screen and (max-width: 1100px) {
+	.bumpmint-design-layout {
+		grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+		gap: 16px;
+	}
+
+	.bumpmint-design-preview-card {
+		padding: 14px;
+	}
+}
+
+@media screen and (max-width: 900px) {
+	.bumpmint-design-layout {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.bumpmint-design-preview-card {
+		position: static;
+		max-height: none;
+		overflow: visible;
+	}
+}
+
+@media screen and (max-width: 782px) {
+	.bumpmint-editor-tabs a {
+		padding: 11px 14px;
+	}
+
+	.bumpmint-design-field-controls {
+		flex-wrap: wrap;
+	}
+
+	.bumpmint-design-field-controls .bumpmint-design-range {
+		flex-basis: 100%;
+		order: 2;
+	}
+
+	.bumpmint-design-reset-field {
+		margin-left: 0;
+	}
+
+	.bumpmint-preview-options {
+		align-items: flex-start;
+		flex-direction: column;
+	}
+}

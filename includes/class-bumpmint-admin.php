@@ -25,6 +25,13 @@ class BumpMint_Admin {
 	private $submitted_rule_data = array();
 
 	/**
+	 * Active editor tab restored after a failed save.
+	 *
+	 * @var string
+	 */
+	private $submitted_active_tab = 'settings';
+
+	/**
 	 * Registers admin hooks.
 	 */
 	public function __construct() {
@@ -77,6 +84,13 @@ class BumpMint_Admin {
 		if ( $is_form_page ) {
 			wp_enqueue_media();
 			wp_enqueue_style( 'woocommerce_admin_styles' );
+			$design_style_path = BUMPMINT_PLUGIN_DIR . 'assets/css/design-editor.css';
+			wp_enqueue_style(
+				'bumpmint-design-editor',
+				BUMPMINT_PLUGIN_URL . 'assets/css/design-editor.css',
+				array( 'bumpmint-admin' ),
+				file_exists( $design_style_path ) ? (string) filemtime( $design_style_path ) : BUMPMINT_VERSION
+			);
 			$script_dependencies[] = 'jquery-tiptip';
 			$script_dependencies[] = 'wc-enhanced-select';
 		}
@@ -103,6 +117,29 @@ class BumpMint_Admin {
 				'couponSearchNonce' => wp_create_nonce( 'bumpmint_search_coupons' ),
 			)
 		);
+
+		if ( $is_form_page ) {
+			$design_script_path = BUMPMINT_PLUGIN_DIR . 'assets/js/design-editor.js';
+			wp_enqueue_script(
+				'bumpmint-design-editor',
+				BUMPMINT_PLUGIN_URL . 'assets/js/design-editor.js',
+				array( 'bumpmint-admin' ),
+				file_exists( $design_script_path ) ? (string) filemtime( $design_script_path ) : BUMPMINT_VERSION,
+				true
+			);
+			$design_config = BumpMint_Design::get_editor_config();
+			$design_config['preview'] = array(
+				'frameTitle' => __( 'Order bump design preview', 'bumpmint-order-bump-for-woocommerce' ),
+				'errorText' => __( 'Example error message for the preview.', 'bumpmint-order-bump-for-woocommerce' ),
+				'productName' => __( 'Sample product', 'bumpmint-order-bump-for-woocommerce' ),
+				'priceText' => trim( html_entity_decode( wp_strip_all_tags( wc_price( 90 ) ), ENT_QUOTES, get_bloginfo( 'charset' ) ) ),
+				'titleDefault' => __( 'Add {product} to your order', 'bumpmint-order-bump-for-woocommerce' ),
+				'descriptionDefault' => __( 'Add {product} for only {price}.', 'bumpmint-order-bump-for-woocommerce' ),
+				'badgeDefault' => __( '10% OFF', 'bumpmint-order-bump-for-woocommerce' ),
+				'placeholderUrl' => wc_placeholder_img_src( 'thumbnail' ),
+			);
+			wp_localize_script( 'bumpmint-design-editor', 'bumpmintDesignEditor', $design_config );
+		}
 	}
 
 	/**
@@ -233,6 +270,18 @@ class BumpMint_Admin {
 				? map_deep( wp_unslash( $_POST['bumpmint_rule'] ), 'sanitize_text_field' )
 				: array();
 			$data    = is_array( $data ) ? $data : array();
+			$this->submitted_active_tab = isset( $_POST['bumpmint_active_tab'] ) && is_scalar( $_POST['bumpmint_active_tab'] )
+				? sanitize_key( wp_unslash( $_POST['bumpmint_active_tab'] ) )
+				: 'settings';
+			if ( ! in_array( $this->submitted_active_tab, array( 'settings', 'design' ), true ) ) {
+				$this->submitted_active_tab = 'settings';
+			}
+			$data['design_touched'] = isset( $_POST['bumpmint_design_touched'] ) && is_scalar( $_POST['bumpmint_design_touched'] )
+				? sanitize_key( wp_unslash( $_POST['bumpmint_design_touched'] ) )
+				: '0';
+			$data['design_present'] = isset( $_POST['bumpmint_design_present'] ) && is_scalar( $_POST['bumpmint_design_present'] )
+				? sanitize_key( wp_unslash( $_POST['bumpmint_design_present'] ) )
+				: '0';
 
 			if ( isset( $_POST['bumpmint_rule']['description'] ) ) {
 				$data['description'] = sanitize_textarea_field(
@@ -274,6 +323,10 @@ class BumpMint_Admin {
 			$result = BumpMint_Rules::save_rule( $rule_id, $data );
 			if ( is_wp_error( $result ) ) {
 				$this->submitted_rule_data = $data;
+				$error_data = $result->get_error_data();
+				$this->submitted_active_tab = is_array( $error_data ) && isset( $error_data['tab'] ) && 'design' === $error_data['tab']
+					? 'design'
+					: 'settings';
 				add_settings_error( 'bumpmint', $result->get_error_code(), $result->get_error_message(), 'error' );
 				return;
 			}
@@ -529,6 +582,31 @@ class BumpMint_Admin {
 		$role_options  = $this->get_user_role_options( (array) $rule['customer_role_slugs'] );
 		$country_options = $this->get_location_country_options( (array) $rule['location_country_codes'] );
 		$state_options   = $this->get_location_state_options( (array) $rule['location_country_codes'], (array) $rule['location_state_codes'] );
+		$design_editor   = BumpMint_Design::get_editor_data( isset( $rule['design'] ) ? $rule['design'] : null );
+		$design_preset    = $design_editor['preset'];
+		$design_values    = $design_editor['values'];
+		if ( isset( $this->submitted_rule_data['design'] ) && is_array( $this->submitted_rule_data['design'] ) ) {
+			$submitted_design = $this->submitted_rule_data['design'];
+			$submitted_preset = isset( $submitted_design['preset'] ) && is_scalar( $submitted_design['preset'] )
+				? sanitize_key( (string) $submitted_design['preset'] )
+				: $design_preset;
+			if ( isset( BumpMint_Design::get_presets()[ $submitted_preset ] ) ) {
+				$design_preset = $submitted_preset;
+				$design_values = array_merge( BumpMint_Design::get_preset_defaults( $design_preset ), $design_values );
+				if ( isset( $submitted_design['overrides'] ) && is_array( $submitted_design['overrides'] ) ) {
+					foreach ( $submitted_design['overrides'] as $field_key => $field_value ) {
+						if ( isset( BumpMint_Design::get_field_schema()[ $field_key ] ) && is_scalar( $field_value ) ) {
+							$design_values[ $field_key ] = sanitize_text_field( (string) $field_value );
+						}
+					}
+				}
+			}
+		}
+		$active_tab       = in_array( $this->submitted_active_tab, array( 'settings', 'design' ), true ) ? $this->submitted_active_tab : 'settings';
+		$design_touched   = isset( $this->submitted_rule_data['design_touched'] ) && is_scalar( $this->submitted_rule_data['design_touched'] ) && '1' === (string) $this->submitted_rule_data['design_touched']
+			? '1'
+			: '0';
+		$preview_srcdoc   = $this->get_design_preview_srcdoc( $rule, $design_editor );
 
 		$errors = get_settings_errors( 'bumpmint' );
 		?>
@@ -545,9 +623,26 @@ class BumpMint_Admin {
 				<div class="notice notice-error"><p><?php echo esc_html( $error['message'] ); ?></p></div>
 			<?php endforeach; ?>
 
-			<form method="post" class="bumpmint-rule-form">
+			<form method="post" class="bumpmint-rule-form bumpmint-editor-enabled">
 				<?php wp_nonce_field( 'bumpmint_save_rule', 'bumpmint_nonce_save' ); ?>
 				<input type="hidden" name="bumpmint_rule_id" value="<?php echo esc_attr( $rule['id'] ); ?>" />
+				<input type="hidden" name="bumpmint_active_tab" class="bumpmint-active-tab" value="<?php echo esc_attr( $active_tab ); ?>" />
+				<input type="hidden" name="bumpmint_design_present" value="1" />
+				<input type="hidden" name="bumpmint_design_touched" class="bumpmint-design-touched" value="<?php echo esc_attr( $design_touched ); ?>" />
+
+				<nav class="bumpmint-editor-tabs" aria-label="<?php esc_attr_e( 'Order bump settings', 'bumpmint-order-bump-for-woocommerce' ); ?>">
+					<a href="#bumpmint-settings-panel" data-bumpmint-tab="settings">
+						<span class="dashicons dashicons-admin-generic" aria-hidden="true"></span>
+						<span><?php esc_html_e( 'Settings', 'bumpmint-order-bump-for-woocommerce' ); ?></span>
+					</a>
+					<a href="#bumpmint-design-panel" data-bumpmint-tab="design">
+						<span class="dashicons dashicons-art" aria-hidden="true"></span>
+						<span><?php esc_html_e( 'Design', 'bumpmint-order-bump-for-woocommerce' ); ?></span>
+						<span class="bumpmint-editor-tab-badge"><?php esc_html_e( 'Live preview', 'bumpmint-order-bump-for-woocommerce' ); ?></span>
+					</a>
+				</nav>
+
+				<div id="bumpmint-settings-panel" class="bumpmint-tab-panel" data-bumpmint-panel="settings">
 
 				<div class="bumpmint-form-card">
 					<h2><?php esc_html_e( 'Basic details', 'bumpmint-order-bump-for-woocommerce' ); ?></h2>
@@ -1048,8 +1143,31 @@ class BumpMint_Admin {
 					</table>
 				</div>
 
-				<div class="bumpmint-form-card">
-					<h2><?php esc_html_e( 'Offer content', 'bumpmint-order-bump-for-woocommerce' ); ?></h2>
+				</div><!-- #bumpmint-settings-panel -->
+
+				<div id="bumpmint-design-panel" class="bumpmint-tab-panel" data-bumpmint-panel="design">
+					<div class="bumpmint-design-layout">
+						<div class="bumpmint-design-controls">
+							<?php if ( $design_editor['is_future_version'] ) : ?>
+								<div class="notice notice-warning inline bumpmint-design-version-notice">
+									<p><?php esc_html_e( 'This offer uses design settings from a newer BumpMint version. Its appearance is shown with the Classic fallback. Changing a design control will replace those settings with the format supported here.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+								</div>
+							<?php endif; ?>
+
+							<div class="bumpmint-form-card bumpmint-design-style-card">
+								<h2><?php esc_html_e( 'Design style', 'bumpmint-order-bump-for-woocommerce' ); ?></h2>
+								<label for="bumpmint-design-preset" class="bumpmint-design-label"><?php esc_html_e( 'Choose a style', 'bumpmint-order-bump-for-woocommerce' ); ?></label>
+								<select id="bumpmint-design-preset" name="bumpmint_rule[design][preset]" class="bumpmint-design-preset">
+									<?php foreach ( BumpMint_Design::get_presets() as $preset_id => $preset ) : ?>
+										<option value="<?php echo esc_attr( $preset_id ); ?>" <?php selected( $design_preset, $preset_id ); ?>><?php echo esc_html( $preset['label'] ); ?></option>
+									<?php endforeach; ?>
+								</select>
+								<p class="description bumpmint-design-preset-description" aria-live="polite"></p>
+							</div>
+
+							<details class="bumpmint-design-group bumpmint-design-content-group" open>
+								<summary><?php esc_html_e( 'Content', 'bumpmint-order-bump-for-woocommerce' ); ?></summary>
+								<div class="bumpmint-design-group-fields">
 					<table class="form-table" role="presentation">
 						<tr>
 							<th scope="row"><label for="bumpmint-badge-text"><?php esc_html_e( 'Top banner text (optional)', 'bumpmint-order-bump-for-woocommerce' ); ?></label></th>
@@ -1127,8 +1245,60 @@ class BumpMint_Admin {
 								<p class="description"><?php esc_html_e( 'Each offered product uses its own image when no custom image is selected.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
 							</td>
 						</tr>
-					</table>
-				</div>
+									</table>
+								</div>
+							</details>
+
+							<?php $this->render_design_field_group( 'colors', $design_values, $design_preset ); ?>
+							<?php $this->render_design_field_group( 'typography', $design_values, $design_preset ); ?>
+							<?php $this->render_design_field_group( 'spacing', $design_values, $design_preset ); ?>
+
+							<div class="bumpmint-design-reset-row">
+								<button type="button" class="button bumpmint-design-reset-all"><?php esc_html_e( 'Reset style', 'bumpmint-order-bump-for-woocommerce' ); ?></button>
+								<p class="description"><?php esc_html_e( 'Reset this style’s visual settings. Offer text and image stay unchanged.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+							</div>
+						</div>
+
+						<aside class="bumpmint-design-preview-column" aria-label="<?php esc_attr_e( 'Live offer preview', 'bumpmint-order-bump-for-woocommerce' ); ?>">
+							<div class="bumpmint-design-preview-card">
+								<h2><?php esc_html_e( 'Live preview', 'bumpmint-order-bump-for-woocommerce' ); ?></h2>
+								<p class="description"><?php esc_html_e( 'Preview how the offer card may look at checkout.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+								<div class="bumpmint-preview-options">
+									<label for="bumpmint-preview-width">
+										<?php esc_html_e( 'Width', 'bumpmint-order-bump-for-woocommerce' ); ?>
+										<select id="bumpmint-preview-width" class="bumpmint-preview-width">
+											<option value="600"><?php esc_html_e( 'Wide', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+											<option value="320"><?php esc_html_e( 'Narrow', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+											<option value="375"><?php esc_html_e( 'Mobile', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+										</select>
+									</label>
+									<label for="bumpmint-preview-state">
+										<?php esc_html_e( 'State', 'bumpmint-order-bump-for-woocommerce' ); ?>
+										<select id="bumpmint-preview-state" class="bumpmint-preview-state">
+											<option value="unselected"><?php esc_html_e( 'Unselected', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+											<option value="selected"><?php esc_html_e( 'Selected', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+											<option value="loading"><?php esc_html_e( 'Loading', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+											<option value="error"><?php esc_html_e( 'Error', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+										</select>
+									</label>
+									<label for="bumpmint-preview-product-type">
+										<?php esc_html_e( 'Product type', 'bumpmint-order-bump-for-woocommerce' ); ?>
+										<select id="bumpmint-preview-product-type" class="bumpmint-preview-product-type">
+											<option value="standard"><?php esc_html_e( 'Standard product', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+											<option value="bookable"><?php esc_html_e( 'Bookable product', 'bumpmint-order-bump-for-woocommerce' ); ?></option>
+										</select>
+									</label>
+								</div>
+								<div class="bumpmint-preview-frame-holder">
+									<p class="bumpmint-preview-placeholder"><?php esc_html_e( 'Open the Design tab to load the preview.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+								</div>
+								<p class="description bumpmint-preview-disclaimer"><?php esc_html_e( 'Prices and product details are examples. Your theme and checkout width may affect the final appearance.', 'bumpmint-order-bump-for-woocommerce' ); ?></p>
+								<?php // Preserve existing entities through the template parse before the document is parsed again as srcdoc. ?>
+								<template class="bumpmint-preview-document"><?php echo esc_textarea( $preview_srcdoc ); ?></template>
+							</div>
+						</aside>
+					</div>
+				</div><!-- #bumpmint-design-panel -->
 
 				<div class="bumpmint-form-actions">
 					<?php submit_button( __( 'Save order bump', 'bumpmint-order-bump-for-woocommerce' ), 'primary', 'submit', false ); ?>
@@ -1139,6 +1309,180 @@ class BumpMint_Admin {
 			</form>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Renders one group of the appearance controls from the shared design schema.
+	 *
+	 * @param string $group         Schema group.
+	 * @param array  $values        Current effective values.
+	 * @param string $active_preset Selected preset.
+	 */
+	private function render_design_field_group( $group, array $values, $active_preset ) {
+		$groups = array(
+			'colors'     => __( 'Colors', 'bumpmint-order-bump-for-woocommerce' ),
+			'typography' => __( 'Typography', 'bumpmint-order-bump-for-woocommerce' ),
+			'spacing'    => __( 'Spacing and borders', 'bumpmint-order-bump-for-woocommerce' ),
+		);
+		if ( ! isset( $groups[ $group ] ) ) {
+			return;
+		}
+
+		$defaults = BumpMint_Design::get_preset_defaults( $active_preset );
+		$fields   = BumpMint_Design::get_field_schema();
+		?>
+		<details class="bumpmint-design-group" <?php echo 'colors' === $group ? 'open' : ''; ?>>
+			<summary><?php echo esc_html( $groups[ $group ] ); ?></summary>
+			<div class="bumpmint-design-group-fields">
+				<?php foreach ( $fields as $key => $field ) : ?>
+					<?php if ( $group !== $field['group'] ) : ?>
+						<?php continue; ?>
+					<?php endif; ?>
+					<?php
+					$value      = array_key_exists( $key, $values ) ? $values[ $key ] : $defaults[ $key ];
+					$value      = is_scalar( $value ) ? (string) $value : (string) $defaults[ $key ];
+					$default    = (string) $defaults[ $key ];
+					$field_id   = 'bumpmint-design-' . $key;
+					$field_name = 'bumpmint_rule[design][overrides][' . $key . ']';
+					?>
+					<div class="bumpmint-design-field" data-design-field="<?php echo esc_attr( $key ); ?>">
+						<label for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $field['label'] ); ?></label>
+						<div class="bumpmint-design-field-controls">
+							<?php if ( 'color' === $field['type'] ) : ?>
+								<input
+									type="color"
+									class="bumpmint-design-color-picker"
+									value="<?php echo esc_attr( preg_match( '/^#[a-fA-F0-9]{6}$/', $value ) ? $value : $default ); ?>"
+									aria-label="<?php echo esc_attr( $field['label'] ); ?>"
+								/>
+								<input
+									type="text"
+									id="<?php echo esc_attr( $field_id ); ?>"
+									name="<?php echo esc_attr( $field_name ); ?>"
+									class="regular-text bumpmint-design-value"
+									value="<?php echo esc_attr( $value ); ?>"
+									maxlength="7"
+									pattern="#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})"
+									autocomplete="off"
+									data-design-key="<?php echo esc_attr( $key ); ?>"
+									data-default="<?php echo esc_attr( $default ); ?>"
+								/>
+							<?php elseif ( 'integer' === $field['type'] ) : ?>
+								<input
+									type="range"
+									class="bumpmint-design-range"
+									min="<?php echo esc_attr( $field['min'] ); ?>"
+									max="<?php echo esc_attr( $field['max'] ); ?>"
+									step="1"
+									value="<?php echo esc_attr( $value ); ?>"
+									aria-label="<?php echo esc_attr( $field['label'] ); ?>"
+								/>
+								<input
+									type="number"
+									id="<?php echo esc_attr( $field_id ); ?>"
+									name="<?php echo esc_attr( $field_name ); ?>"
+									class="small-text bumpmint-design-value"
+									min="<?php echo esc_attr( $field['min'] ); ?>"
+									max="<?php echo esc_attr( $field['max'] ); ?>"
+									step="1"
+									value="<?php echo esc_attr( $value ); ?>"
+									data-design-key="<?php echo esc_attr( $key ); ?>"
+									data-default="<?php echo esc_attr( $default ); ?>"
+								/>
+								<span class="bumpmint-design-unit"><?php echo esc_html( $field['unit'] ); ?></span>
+							<?php else : ?>
+								<select
+									id="<?php echo esc_attr( $field_id ); ?>"
+									name="<?php echo esc_attr( $field_name ); ?>"
+									class="bumpmint-design-value"
+									data-design-key="<?php echo esc_attr( $key ); ?>"
+									data-default="<?php echo esc_attr( $default ); ?>"
+								>
+									<?php foreach ( $field['options'] as $option_value => $option_label ) : ?>
+										<option value="<?php echo esc_attr( $option_value ); ?>" <?php selected( $value, (string) $option_value ); ?>><?php echo esc_html( $option_label ); ?></option>
+									<?php endforeach; ?>
+								</select>
+							<?php endif; ?>
+							<button type="button" class="button-link bumpmint-design-reset-field" data-reset-design-field="<?php echo esc_attr( $key ); ?>">
+								<?php esc_html_e( 'Reset', 'bumpmint-order-bump-for-woocommerce' ); ?>
+							</button>
+						</div>
+					</div>
+				<?php endforeach; ?>
+			</div>
+		</details>
+		<?php
+	}
+
+	/**
+	 * Builds the isolated, inert preview document from the shared offer-card partial.
+	 *
+	 * @param array $rule          Current campaign form values.
+	 * @param array $design_editor Safe editor data.
+	 * @return string
+	 */
+	private function get_design_preview_srcdoc( array $rule, array $design_editor ) {
+		$product_name = __( 'Sample product', 'bumpmint-order-bump-for-woocommerce' );
+		$regular_html = wp_kses_post( wc_price( 100 ) );
+		$offer_html   = wp_kses_post( wc_price( 90 ) );
+		$price_text   = trim( html_entity_decode( wp_strip_all_tags( $offer_html ), ENT_QUOTES, get_bloginfo( 'charset' ) ) );
+		$title        = ! empty( $rule['offer_title'] ) ? $rule['offer_title'] : __( 'Add {product} to your order', 'bumpmint-order-bump-for-woocommerce' );
+		$description  = ! empty( $rule['description'] ) ? $rule['description'] : __( 'Add {product} for only {price}.', 'bumpmint-order-bump-for-woocommerce' );
+		$placeholders = array( '{product}', '{produto}', '{producto}', '{price}', '{preco}', '{precio}' );
+		$replacements = array( $product_name, $product_name, $product_name, $price_text, $price_text, $price_text );
+		$badge        = ! empty( $rule['badge_text'] ) ? $rule['badge_text'] : __( '10% OFF', 'bumpmint-order-bump-for-woocommerce' );
+		$image_id     = isset( $rule['image_id'] ) ? absint( $rule['image_id'] ) : 0;
+		if ( $image_id ) {
+			$image_html = wp_get_attachment_image( $image_id, 'thumbnail', false, array( 'class' => 'bumpmint-bump-image', 'alt' => $product_name ) );
+		} else {
+			$image_html = sprintf(
+				'<img class="bumpmint-bump-image" src="%1$s" alt="%2$s" />',
+				esc_url( wc_placeholder_img_src( 'thumbnail' ) ),
+				esc_attr( $product_name )
+			);
+		}
+
+		$design_submission = BumpMint_Design::validate_submission(
+			array( 'preset' => $design_editor['preset'], 'overrides' => $design_editor['values'] )
+		);
+		$design_data = BumpMint_Design::get_render_data( is_wp_error( $design_submission ) ? null : $design_submission );
+		$view_data   = array(
+			'rule_id'                => 'preview-only',
+			'product_id'             => 0,
+			'selected'               => false,
+			'requires_configuration' => false,
+			'configuration_url'      => '#',
+			'configuration_label'    => __( 'Choose options', 'bumpmint-order-bump-for-woocommerce' ),
+			'configuration_hint'     => __( 'Example only. Product options are configured on the product page.', 'bumpmint-order-bump-for-woocommerce' ),
+			'badge'                  => $badge,
+			'title'                  => str_replace( $placeholders, $replacements, $title ),
+			'description'            => str_replace( $placeholders, $replacements, $description ),
+			'price_html'             => '<del>' . $regular_html . '</del> <ins>' . $offer_html . '</ins>',
+			'image_alt'              => $product_name,
+			'design'                 => $design_data,
+		);
+
+		ob_start();
+		$bumpmint_view_data  = $view_data;
+		$bumpmint_image_html = $image_html;
+		$bumpmint_input_id   = 'bumpmint-preview-checkbox';
+		$bumpmint_is_preview = true;
+		include BUMPMINT_PLUGIN_DIR . 'includes/views/offer-card.php';
+		$card_html = ob_get_clean();
+
+		$preview_css_path = BUMPMINT_PLUGIN_DIR . 'assets/css/frontend.css';
+		$preview_css_ver  = file_exists( $preview_css_path ) ? (string) filemtime( $preview_css_path ) : BUMPMINT_VERSION;
+		// A private style queue prints into srcdoc without leaking checkout styles into the admin page.
+		$preview_styles = new WP_Styles();
+		$preview_styles->add( 'bumpmint-design-preview', BUMPMINT_PLUGIN_URL . 'assets/css/frontend.css', array(), $preview_css_ver );
+		$preview_styles->enqueue( 'bumpmint-design-preview' );
+		ob_start();
+		$preview_styles->do_items();
+		$preview_styles_html = ob_get_clean();
+		$presets_css     = BumpMint_Design::get_presets_css();
+		$document        = '<!doctype html><html lang="' . esc_attr( determine_locale() ) . '" dir="' . esc_attr( is_rtl() ? 'rtl' : 'ltr' ) . '"><head><meta charset="' . esc_attr( get_bloginfo( 'charset' ) ) . '"><meta name="viewport" content="width=device-width, initial-scale=1">' . $preview_styles_html . '<style>html,body{margin:0;padding:0;background:#fff;color:#1d2327;font-family:system-ui,sans-serif}body{padding:8px}.bumpmint-preview-root{width:100%;max-width:600px;margin:0 auto}.bumpmint-preview-root .bumpmint-bump-box{box-sizing:border-box;width:100%}.bumpmint-preview-root [hidden]{display:none!important}</style><style>' . $presets_css . '</style></head><body><main class="bumpmint-preview-root"><div class="bumpmint-position">' . $card_html . '</div></main></body></html>';
+
+		return $document;
 	}
 
 	/**

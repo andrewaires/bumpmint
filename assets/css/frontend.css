@@ -25,21 +25,52 @@
 
 .bumpmint-bump-box {
 	--bumpmint-accent: #d71920;
-	--bumpmint-accent-dark: #b91319;
+	--bumpmint-accent-hover: #b91319;
 	--bumpmint-selected-bg: #fff7f7;
 	--bumpmint-border: #dfe3e8;
 	--bumpmint-text: #1e293b;
 	--bumpmint-text-muted: #64748b;
+	--bumpmint-price-color: #b91319;
+	--bumpmint-banner-start: #d71920;
+	--bumpmint-banner-end: #b91319;
+	--bumpmint-banner-text: #fff;
+	--bumpmint-button-text: #fff;
+	--bumpmint-background: #fff;
+	--bumpmint-font-family: inherit;
+	--bumpmint-title-size: 15px;
+	--bumpmint-title-weight: 650;
+	--bumpmint-description-size: 14px;
+	--bumpmint-description-weight: 500;
+	--bumpmint-price-size: 14px;
+	--bumpmint-banner-size: 15px;
+	--bumpmint-banner-transform: uppercase;
+	--bumpmint-button-size: 14px;
+	--bumpmint-card-padding: 16px;
+	--bumpmint-content-gap: 14px;
+	--bumpmint-border-width: 1px;
+	--bumpmint-border-style: solid;
 	--bumpmint-radius: 14px;
+	--bumpmint-image-size: 58px;
+	--bumpmint-image-radius: 8px;
+	--bumpmint-box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+	--bumpmint-error-color: #b32d2e;
+	--bumpmint-hover-border: #c7cdd4;
+	--bumpmint-hover-shadow: 0 5px 16px rgba(15, 23, 42, 0.1);
 
 	position: relative;
+	box-sizing: border-box;
+	container-name: bumpmint-card;
+	container-type: inline-size;
 	overflow: hidden;
+	width: 100%;
+	min-width: 0;
 	margin-bottom: 16px;
-	border: 1px solid var(--bumpmint-border);
+	border: var(--bumpmint-border-width) var(--bumpmint-border-style) var(--bumpmint-border);
 	border-radius: var(--bumpmint-radius);
-	background: #fff;
-	box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
-	transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+	background: var(--bumpmint-background);
+	box-shadow: var(--bumpmint-box-shadow);
+	font-family: var(--bumpmint-font-family);
+	transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
 }
 
 .bumpmint-bump-box:last-child {
@@ -47,8 +78,8 @@
 }
 
 .bumpmint-bump-box:hover {
-	border-color: #c7cdd4;
-	box-shadow: 0 5px 16px rgba(15, 23, 42, 0.1);
+	border-color: var(--bumpmint-hover-border);
+	box-shadow: var(--bumpmint-hover-shadow);
 }
 
 .bumpmint-bump-box:has(.bumpmint-checkbox:checked) {
@@ -61,26 +92,28 @@
 }
 
 .bumpmint-badge {
+	box-sizing: border-box;
 	padding: 10px 16px;
-	background: linear-gradient(135deg, var(--bumpmint-accent), var(--bumpmint-accent-dark));
-	color: #fff;
-	font-size: 15px;
+	background: linear-gradient(135deg, var(--bumpmint-banner-start), var(--bumpmint-banner-end));
+	color: var(--bumpmint-banner-text);
+	font-size: var(--bumpmint-banner-size);
 	font-weight: 700;
 	line-height: 1.2;
 	letter-spacing: 0.04em;
 	text-align: center;
-	text-transform: uppercase;
+	text-transform: var(--bumpmint-banner-transform);
 	text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
 }
 
 .bumpmint-bump-content {
-	padding: 16px;
+	padding: var(--bumpmint-card-padding);
 }
 
 .bumpmint-bump-label {
 	display: flex;
 	align-items: center;
-	gap: 14px;
+	gap: var(--bumpmint-content-gap);
+	min-width: 0;
 	margin: 0;
 	cursor: pointer;
 }
@@ -90,7 +123,7 @@
 }
 
 .bumpmint-bump-label input[type="checkbox"].bumpmint-checkbox {
-	flex-shrink: 0;
+	flex: 0 0 auto;
 	width: 22px;
 	height: 22px;
 	margin: 0;
@@ -99,33 +132,35 @@
 }
 
 .bumpmint-bump-image {
-	flex-shrink: 0;
-	width: 58px;
-	height: 58px;
+	flex: 0 0 var(--bumpmint-image-size);
+	width: var(--bumpmint-image-size);
+	height: var(--bumpmint-image-size);
+	max-width: 100%;
 	border: 1px solid var(--bumpmint-border);
-	border-radius: 8px;
+	border-radius: var(--bumpmint-image-radius);
 	background: #f8fafc;
 	object-fit: cover;
 }
 
 .bumpmint-bump-copy {
 	display: flex;
-	flex: 1;
+	flex: 1 1 auto;
 	flex-direction: column;
 	gap: 3px;
 	min-width: 0;
+	overflow-wrap: anywhere;
 }
 
 .bumpmint-bump-title {
 	color: var(--bumpmint-text);
-	font-size: 15px;
-	font-weight: 650;
+	font-size: var(--bumpmint-title-size);
+	font-weight: var(--bumpmint-title-weight);
 	line-height: 1.4;
 }
 
 .bumpmint-bump-price {
-	color: var(--bumpmint-text);
-	font-size: 14px;
+	color: var(--bumpmint-price-color);
+	font-size: var(--bumpmint-price-size);
 	line-height: 1.35;
 }
 
@@ -136,21 +171,23 @@
 }
 
 .bumpmint-bump-price ins {
-	color: var(--bumpmint-accent-dark);
+	color: var(--bumpmint-price-color);
 	font-weight: 700;
 	text-decoration: none;
 }
 
 .bumpmint-bump-description {
 	margin: 12px 0 0;
-	padding-left: 36px;
+	padding-inline-start: calc(22px + var(--bumpmint-content-gap));
 	color: var(--bumpmint-text-muted);
-	font-size: 14px;
+	font-size: var(--bumpmint-description-size);
+	font-weight: var(--bumpmint-description-weight);
 	line-height: 1.5;
+	overflow-wrap: anywhere;
 }
 
 .bumpmint-bump-box.is-configurable .bumpmint-bump-description {
-	padding-left: 0;
+	padding-inline-start: 0;
 }
 
 .bumpmint-native-actions {
@@ -170,8 +207,8 @@
 	border: 1px solid var(--bumpmint-accent);
 	border-radius: 6px;
 	background: var(--bumpmint-accent);
-	color: #fff !important;
-	font-size: 14px;
+	color: var(--bumpmint-button-text) !important;
+	font-size: var(--bumpmint-button-size);
 	font-weight: 600;
 	line-height: 1.35;
 	text-decoration: none !important;
@@ -180,14 +217,22 @@
 
 .bumpmint-configure-button:hover,
 .bumpmint-configure-button:focus {
-	border-color: var(--bumpmint-accent-dark);
-	background: var(--bumpmint-accent-dark);
-	color: #fff !important;
+	border-color: var(--bumpmint-accent-hover);
+	background: var(--bumpmint-accent-hover);
+	color: var(--bumpmint-button-text) !important;
 	box-shadow: 0 0 0 2px rgba(215, 25, 32, 0.18);
+}
+
+@supports (color: color-mix(in srgb, #000 20%, transparent)) {
+	.bumpmint-configure-button:hover,
+	.bumpmint-configure-button:focus {
+		box-shadow: 0 0 0 2px color-mix(in srgb, var(--bumpmint-accent) 22%, transparent);
+	}
 }
 
 .bumpmint-native-hint {
 	flex: 1 1 220px;
+	min-width: 0;
 	margin: 0;
 	color: var(--bumpmint-text-muted);
 	font-size: 13px;
@@ -197,7 +242,7 @@
 
 .bumpmint-bump-feedback {
 	margin: 8px 0 0;
-	color: #b32d2e;
+	color: var(--bumpmint-error-color);
 	font-size: 15px;
 	font-weight: 600;
 	line-height: 1.4;
@@ -207,26 +252,119 @@
 	display: none;
 }
 
-@media (max-width: 480px) {
-	.bumpmint-badge {
-		padding: 9px 12px;
-		font-size: 14px;
-	}
+/* The same markup uses six named presets; PHP supplies each preset's tokens. */
+.bumpmint-design-classic .bumpmint-badge,
+.bumpmint-design-dark .bumpmint-badge {
+	border-radius: 0;
+}
 
+.bumpmint-design-minimal .bumpmint-badge {
+	display: table;
+	max-width: calc(100% - 32px);
+	margin: 12px 16px 0;
+	padding: 5px 10px;
+	border-radius: 999px;
+	text-shadow: none;
+}
+
+.bumpmint-design-minimal .bumpmint-bump-content {
+	padding-top: 12px;
+}
+
+.bumpmint-design-soft .bumpmint-badge {
+	padding-top: 12px;
+	padding-bottom: 12px;
+	text-shadow: none;
+}
+
+.bumpmint-design-outline {
+	border-style: var(--bumpmint-border-style);
+}
+
+.bumpmint-design-outline .bumpmint-badge {
+	text-shadow: none;
+}
+
+.bumpmint-design-dark .bumpmint-bump-box,
+.bumpmint-design-dark {
+	color-scheme: dark;
+}
+
+.bumpmint-design-dark .bumpmint-bump-price del {
+	color: #94a3b8;
+}
+
+.bumpmint-design-dark .bumpmint-configure-button {
+	border-color: var(--bumpmint-accent);
+}
+
+.bumpmint-design-compact::before {
+	position: absolute;
+	top: var(--bumpmint-border-width);
+	bottom: var(--bumpmint-border-width);
+	inset-inline-start: var(--bumpmint-border-width);
+	width: 4px;
+	border-radius: 0 4px 4px 0;
+	background: var(--bumpmint-accent);
+	content: "";
+}
+
+.bumpmint-design-compact .bumpmint-badge {
+	padding: 7px 12px;
+	text-align: start;
+	text-shadow: none;
+}
+
+.bumpmint-design-compact .bumpmint-bump-description {
+	margin-top: 8px;
+}
+
+@container bumpmint-card (max-width: 480px) {
 	.bumpmint-bump-content {
-		padding: 13px;
+		padding: min(var(--bumpmint-card-padding), 13px);
 	}
 
 	.bumpmint-bump-label {
-		gap: 10px;
+		gap: min(var(--bumpmint-content-gap), 10px);
 	}
 
 	.bumpmint-bump-image {
-		width: 50px;
-		height: 50px;
+		flex-basis: min(var(--bumpmint-image-size), 50px);
+		width: min(var(--bumpmint-image-size), 50px);
+		height: min(var(--bumpmint-image-size), 50px);
+	}
+
+	.bumpmint-badge {
+		padding: 9px 12px;
+		font-size: min(var(--bumpmint-banner-size), 14px);
 	}
 
 	.bumpmint-bump-description {
-		padding-left: 0;
+		padding-inline-start: 0;
+	}
+}
+
+@media (max-width: 480px) {
+	.bumpmint-bump-content {
+		padding: min(var(--bumpmint-card-padding), 13px);
+	}
+
+	.bumpmint-bump-label {
+		gap: min(var(--bumpmint-content-gap), 10px);
+	}
+
+	.bumpmint-bump-image {
+		flex-basis: min(var(--bumpmint-image-size), 50px);
+		width: min(var(--bumpmint-image-size), 50px);
+		height: min(var(--bumpmint-image-size), 50px);
+	}
+
+	.bumpmint-badge {
+		padding: 9px 12px;
+		font-size: min(var(--bumpmint-banner-size), 14px);
+	}
+
+	.bumpmint-bump-description {
+		padding-inline-start: 0;
 	}
 }

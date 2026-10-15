@@ -1,6 +1,15 @@
 BumpMint - Complete Changelog
 =============================
 
+1.8.0 - 2026-10-15
+------------------
+- Added a Design tab to campaign creation and editing, separating offer settings from appearance controls.
+- Added six campaign styles: Classic, Minimal, Soft, Outline, Dark, and Compact, available in classic checkout and Checkout Blocks.
+- Added visual controls for colors, typography, spacing, borders, shadows, and image dimensions.
+- Added a live preview with offer width, state, and product-type simulations that stays visible while scrolling on wide screens.
+- Added resets for individual fields or the full style while preserving offer text and images.
+- Increased the default offer description font weight to 500, with customization available in the editor.
+
 1.7.0 - 2026-08-22
 ------------------
 - Added active and inactive campaign controls without deleting saved settings or Analytics history.

@@ -90,12 +90,7 @@ class BumpMint_Checkout_Block implements IntegrationInterface {
 			BumpMint_Analytics::get_frontend_config()
 		);
 
-		wp_enqueue_style(
-			'bumpmint-frontend',
-			BUMPMINT_PLUGIN_URL . 'assets/css/frontend.css',
-			array(),
-			BUMPMINT_VERSION
-		);
+		BumpMint_Design::enqueue_frontend_styles();
 	}
 
 	/**
@@ -180,6 +175,14 @@ class BumpMint_Checkout_Block implements IntegrationInterface {
 	 * @return array<string,mixed>
 	 */
 	public function get_cart_schema() {
+		$variable_properties = array();
+		foreach ( BumpMint_Design::get_field_schema() as $field ) {
+			$variable_properties[ $field['css_var'] ] = array(
+				'type'     => 'string',
+				'readonly' => true,
+			);
+		}
+
 		return array(
 			'offers' => array(
 				'type'     => 'array',
@@ -200,6 +203,23 @@ class BumpMint_Checkout_Block implements IntegrationInterface {
 						'price_html'             => array( 'type' => 'string', 'readonly' => true ),
 						'image_url'              => array( 'type' => 'string', 'format' => 'uri', 'readonly' => true ),
 						'image_alt'              => array( 'type' => 'string', 'readonly' => true ),
+						'design'                 => array(
+							'type'       => 'object',
+							'readonly'   => true,
+							'properties' => array(
+								'preset' => array(
+									'type'     => 'string',
+									'enum'     => array_keys( BumpMint_Design::get_presets() ),
+									'readonly' => true,
+								),
+								'css_variables' => array(
+									'type'                 => 'object',
+									'readonly'             => true,
+									'properties'           => $variable_properties,
+									'additionalProperties' => false,
+								),
+							),
+						),
 					),
 				),
 			),

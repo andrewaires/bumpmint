@@ -18,9 +18,24 @@
 			$form.find( '.bumpmint-image-id' ).val( attachment.id );
 			$form.find( '.bumpmint-image-preview' ).attr( 'src', previewUrl ).show();
 			$form.find( '.bumpmint-remove-image' ).show();
+			triggerOfferContentChange( $form );
 		});
 
 		frame.open();
+	}
+
+	function triggerOfferContentChange( $form ) {
+		var form = $form && $form.length ? $form[ 0 ] : null;
+
+		if ( ! form ) {
+			return;
+		}
+
+		if ( typeof window.CustomEvent === 'function' ) {
+			form.dispatchEvent( new window.CustomEvent( 'bumpmint:offer-content-change', { bubbles: true } ) );
+		} else {
+			$( form ).trigger( 'bumpmint:offer-content-change' );
+		}
 	}
 
 	function updateConditionFields( $form ) {
@@ -241,6 +256,7 @@
 		$form.find( '.bumpmint-image-id' ).val( '' );
 		$form.find( '.bumpmint-image-preview' ).attr( 'src', '' ).hide();
 		$( this ).hide();
+		triggerOfferContentChange( $form );
 	});
 
 	$( document ).on( 'click', '.bumpmint-delete-link', function ( event ) {

@@ -82,6 +82,12 @@ Each campaign can contain multiple products that customers select independently.
 
 Classic checkout supports four positions. Checkout Blocks display eligible offers below the order summary through WooCommerce's Store API integration.
 
+### Visual design with a live preview
+
+Use the **Design** tab to choose from six campaign styles: Classic, Minimal, Soft, Outline, Dark, and Compact. Customize colors, typography, spacing, borders, shadows, and image dimensions without writing CSS. Preview changes as you edit, simulate offer widths and states, and reset individual fields or the full style without clearing your offer text or image.
+
+The preview stays visible while scrolling on wide screens. All products in a campaign share its design, while different campaigns can have different looks. Existing campaigns default to Classic, and the editor loads only in the campaign administration screen, not at checkout.
+
 ### Native WooCommerce Bookings flow
 
 Eligible bookable products use the native product form for dates and other required options. After configuration, the customer returns to checkout and BumpMint discounts the booking price calculated by WooCommerce. Products requiring confirmation are excluded because they use a separate purchase flow.
@@ -111,6 +117,8 @@ Report data remains in the WordPress database. BumpMint does not store names, em
 - **Checkout Blocks:** Display offers below the block order summary.
 - **WooCommerce Bookings:** Use the native form for supported bookable products.
 - **Custom presentation:** Edit the banner, image, title, description, and placeholders.
+- **Visual customization:** Adjust colors, fonts, sizes, spacing, borders, shadows, and images without writing CSS.
+- **Live preview:** See changes as you edit and simulate offer widths and states.
 - **Server-side safeguards:** Validate eligibility, products, stock, quantities, and prices.
 - **Cart synchronization:** Remove only BumpMint lines that lose eligibility.
 - **Local Analytics:** Track views, conversions, conversion rate, revenue, and top-performing bumps.
@@ -124,7 +132,7 @@ Report data remains in the WordPress database. BumpMint does not store names, em
 
 1. Choose the products to offer.
 2. Configure targeting, schedule, checkout position, and optional discount.
-3. Customize the campaign, save it, and track the results.
+3. Customize the campaign in the Design tab, preview it, save it, and track the results.
 
 ## Requirements and compatibility
 
